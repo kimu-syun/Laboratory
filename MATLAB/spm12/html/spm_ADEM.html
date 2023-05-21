@@ -1,0 +1,1868 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>spm_ADEM</title><meta name="generator" content="MATLAB 9.13"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2022-12-05"><meta name="DC.source" content="spm_ADEM.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; }
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+span.typesection { color:#A0522D }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><pre class="codeinput"><span class="keyword">function</span> [DEM] = spm_ADEM(DEM)
+<span class="comment">% Dynamic expectation maximisation:  Active inversion</span>
+<span class="comment">% FORMAT DEM   = spm_ADEM(DEM)</span>
+<span class="comment">%</span>
+<span class="comment">% DEM.G  - generative process</span>
+<span class="comment">% DEM.M  - recognition  model</span>
+<span class="comment">% DEM.C  - causes</span>
+<span class="comment">% DEM.U  - prior expectation of causes</span>
+<span class="comment">%__________________________________________________________________________</span>
+<span class="comment">%</span>
+<span class="comment">% This implementation of DEM is the same as spm_DEM but integrates both the</span>
+<span class="comment">% generative process and model inversion in parallel. Its functionality is</span>
+<span class="comment">% exactly the same apart from the fact that confounds are not accommodated</span>
+<span class="comment">% explicitly.  The generative model is specified by DEM.G and the veridical</span>
+<span class="comment">% causes by DEM.C; these may or may not be used as priors on the causes for</span>
+<span class="comment">% the inversion model DEM.M (i.e., DEM.U = DEM.C).  Clearly, DEM.G does not</span>
+<span class="comment">% require any priors or precision components; it will use the values of the</span>
+<span class="comment">% parameters specified in the prior expectation fields.</span>
+<span class="comment">%</span>
+<span class="comment">% This routine is not used for model inversion per se but to simulate the</span>
+<span class="comment">% dynamical inversion of models.  Critically, it includes action</span>
+<span class="comment">% variables a - that couple the model back to the generative process</span>
+<span class="comment">% This enables active inference (c.f., action-perception) or embodied</span>
+<span class="comment">% inference.</span>
+<span class="comment">%</span>
+<span class="comment">% hierarchical models M(i)</span>
+<span class="comment">% &#38542;&#23652;&#22411;&#12514;&#12487;&#12523;</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%   M(i).g  = y(t)  = g(x,v,P)    {inline function, string or m-file}</span>
+<span class="comment">%   M(i).f  = dx/dt = f(x,v,P)    {inline function, string or m-file}</span>
+<span class="comment">%</span>
+<span class="comment">%   M(i).pE = prior expectation of p model-parameters</span>
+<span class="comment">%   M(i).pC = prior covariances of p model-parameters</span>
+<span class="comment">%   M(i).hE = prior expectation of h hyper-parameters (cause noise)</span>
+<span class="comment">%   M(i).hC = prior covariances of h hyper-parameters (cause noise)</span>
+<span class="comment">%   M(i).gE = prior expectation of g hyper-parameters (state noise)</span>
+<span class="comment">%   M(i).gC = prior covariances of g hyper-parameters (state noise)</span>
+<span class="comment">%   M(i).Q  = precision components (input noise)</span>
+<span class="comment">%   M(i).R  = precision components (state noise)</span>
+<span class="comment">%   M(i).V  = fixed precision (input noise)</span>
+<span class="comment">%   M(i).W  = fixed precision (state noise)</span>
+<span class="comment">%   M(i).xP = precision (states)</span>
+<span class="comment">%</span>
+<span class="comment">%   M(i).m  = number of inputs v(i + 1);</span>
+<span class="comment">%   M(i).n  = number of states x(i)</span>
+<span class="comment">%   M(i).l  = number of output v(i)</span>
+<span class="comment">%   M(i).k  = number of action a(i)</span>
+
+<span class="comment">% hierarchical process G(i)</span>
+<span class="comment">% &#38542;&#23652;&#36942;&#31243;G(i)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%   G(i).g  = y(t)  = g(x,v,a,P)    {inline function, string or m-file}</span>
+<span class="comment">%   G(i).f  = dx/dt = f(x,v,a,P)    {inline function, string or m-file}</span>
+<span class="comment">%</span>
+<span class="comment">%   G(i).pE = model-parameters</span>
+<span class="comment">%   G(i).U  = precision (action)</span>
+<span class="comment">%   G(i).V  = precision (input noise)</span>
+<span class="comment">%   G(i).W  = precision (state noise)</span>
+<span class="comment">%</span>
+<span class="comment">%   G(1).R  = restriction or rate matrix for action [default: 1];</span>
+<span class="comment">%   G(i).aP = precision (action)   [default: exp(-2)]</span>
+<span class="comment">%</span>
+<span class="comment">%   G(i).m  = number of inputs v(i + 1);</span>
+<span class="comment">%   G(i).n  = number of states x(i)</span>
+<span class="comment">%   G(i).l  = number of output v(i)</span>
+<span class="comment">%   G(i).k  = number of action a(i)</span>
+<span class="comment">%</span>
+<span class="comment">%</span>
+<span class="comment">% Returns the following fields of DEM</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%</span>
+<span class="comment">% true model-states - u</span>
+<span class="comment">% &#30495;&#12398;&#12514;&#12487;&#12523;&#29366;&#24907; - u</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%   pU.x    = true hidden states</span>
+<span class="comment">%   pU.v    = true causal states v{1} = response (Y)</span>
+<span class="comment">%   pU.C    = prior covariance: cov(v)</span>
+<span class="comment">%   pU.S    = prior covariance: cov(x)</span>
+<span class="comment">%</span>
+<span class="comment">% model-parameters - p</span>
+<span class="comment">% &#12514;&#12487;&#12523;&#12497;&#12521;&#12513;&#12540;&#12479; - p</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%   pP.P    = parameters for each level</span>
+<span class="comment">%</span>
+<span class="comment">% hyper-parameters (log-transformed) - h,g</span>
+<span class="comment">% &#12495;&#12452;&#12497;&#12540;&#12497;&#12521;&#12513;&#12540;&#12479;(log - &#23550;&#25968;&#22793;&#25563;) - h,g</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%   pH.h    = cause noise</span>
+<span class="comment">%   pH.g    = state noise</span>
+<span class="comment">%</span>
+<span class="comment">% conditional moments of model-states - q(u)</span>
+<span class="comment">% &#12514;&#12487;&#12523;&#29366;&#24907;&#12391;&#26465;&#20214;&#20184;&#12365;&#12514;&#12540;&#12513;&#12531;&#12488; - q(u)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%   qU.a    = Action</span>
+<span class="comment">%   qU.x    = Conditional expectation of hidden states</span>
+<span class="comment">%   qU.v    = Conditional expectation of causal states</span>
+<span class="comment">%   qU.z    = Conditional prediction errors (v)</span>
+<span class="comment">%   qU.C    = Conditional covariance: cov(v)</span>
+<span class="comment">%   qU.S    = Conditional covariance: cov(x)</span>
+<span class="comment">%</span>
+<span class="comment">% conditional moments of model-parameters - q(p)</span>
+<span class="comment">% &#12514;&#12487;&#12523;&#12497;&#12521;&#12513;&#12540;&#12479;&#12391;&#26465;&#20214;&#20184;&#12365;&#12514;&#12540;&#12513;&#12531;&#12488; - q(p)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%   qP.P    = Conditional expectation</span>
+<span class="comment">%   qP.C    = Conditional covariance</span>
+<span class="comment">%</span>
+<span class="comment">% conditional moments of hyper-parameters (log-transformed) - q(h)</span>
+<span class="comment">% &#12495;&#12452;&#12497;&#12540;&#12497;&#12521;&#12513;&#12540;&#12479;&#12398;&#26465;&#20214;&#20184;&#12365;&#12514;&#12540;&#12513;&#12531;&#12488;(log &#23550;&#25968;&#22793;&#25563;) - q(h)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="comment">%   qH.h    = Conditional expectation (cause noise)</span>
+<span class="comment">%   qH.g    = Conditional expectation (state noise)</span>
+<span class="comment">%   qH.C    = Conditional covariance</span>
+<span class="comment">%</span>
+<span class="comment">% F         = log evidence = log marginal likelihood = negative free energy</span>
+<span class="comment">% F         = &#36000;&#12398;&#33258;&#30001;&#12456;&#12493;&#12523;&#12462;&#12540;</span>
+<span class="comment">%__________________________________________________________________________</span>
+<span class="comment">%</span>
+<span class="comment">% spm_ADEM implements a variational Bayes (VB) scheme under the Laplace</span>
+<span class="comment">% approximation to the conditional densities of states (u), parameters (p)</span>
+<span class="comment">% and hyperparameters (h) of any analytic nonlinear hierarchical dynamic</span>
+<span class="comment">% model, with additive Gaussian innovations.  It comprises three</span>
+<span class="comment">% variational steps (D,E and M) that update the conditional moments of u, p</span>
+<span class="comment">% and h respectively</span>
+<span class="comment">% spm_ADEM &#12399;&#12289;&#21152;&#27861;&#30340;&#12460;&#12454;&#12473;&#12452;&#12494;&#12505;&#12540;&#12471;&#12519;&#12531;&#12434;&#25345;&#12388;&#35299;&#26512;&#30340;&#38750;&#32218;&#24418;&#38542;&#23652;&#30340;&#21205;&#30340;&#12514;&#12487;&#12523;&#12398;&#29366;&#24907;</span>
+<span class="comment">% (u), &#12497;&#12521;&#12513;&#12540;&#12479; (p), &#12495;&#12452;&#12497;&#12540;&#12497;&#12521;&#12513;&#12540;&#12479; (h) &#12398;&#26465;&#20214;&#23494;&#24230;&#12395;&#23550;&#12377;&#12427;&#12521;&#12503;&#12521;&#12473;&#36817;&#20284;&#12398;&#12418;&#12392;</span>
+<span class="comment">% &#22793;&#20998;&#12505;&#12452;&#12474; (VB) &#12473;&#12461;&#12540;&#12512;&#12434;&#23455;&#35013;&#12375;&#12390;&#12356;&#12414;&#12377;.  &#12371;&#12428;&#12399;3&#12388;&#12398;&#22793;&#20998;&#12473;&#12486;&#12483;&#12503;(D,E,M)&#12363;&#12425;</span>
+<span class="comment">% &#12394;&#12426;&#12289;u, p &#12362;&#12424;&#12403;h&#12398;&#26465;&#20214;&#20184;&#12365;&#12514;&#12540;&#12513;&#12531;&#12488;&#12434;&#12381;&#12428;&#12382;&#12428;&#26356;&#26032;&#12377;&#12427;</span>
+<span class="comment">%</span>
+<span class="comment">%                D: qu.u = max &lt;L&gt;q(p,h)</span>
+<span class="comment">%                E: qp.p = max &lt;L&gt;q(u,h)</span>
+<span class="comment">%                M: qh.h = max &lt;L&gt;q(u,p)</span>
+<span class="comment">%</span>
+<span class="comment">% where qu.u corresponds to the conditional expectation of hidden states x</span>
+<span class="comment">% and causal states v and so on.  L is the ln p(y,u,p,h|M) under the model</span>
+<span class="comment">% M. The conditional covariances obtain analytically from the curvature of</span>
+<span class="comment">% L with respect to u, p and h.</span>
+<span class="comment">% &#12371;&#12371;&#12391;&#12289;qu.u &#12399;&#38560;&#12428;&#29366;&#24907; x &#12392;&#22240;&#26524;&#29366;&#24907; v &#12394;&#12393;&#12398;&#26465;&#20214;&#20184;&#12365;&#26399;&#24453;&#20516;&#12395;&#23550;&#24540;&#12377;&#12427;&#12290;</span>
+<span class="comment">% L&#12399;&#12514;&#12487;&#12523;M&#12398;&#19979;&#12391;&#12398;ln p(y,u,p,h|M) &#12391;&#12354;&#12426;&#12289;&#26465;&#20214;&#20184;&#12365;&#20849;&#20998;&#25955;&#12399;u, p, h&#12395;&#38306;&#12377;&#12427;</span>
+<span class="comment">% L&#12398;&#26354;&#29575;&#12363;&#12425;&#35299;&#26512;&#30340;&#12395;&#24471;&#12425;&#12428;&#12427;</span>
+<span class="comment">%</span>
+<span class="comment">% The D-step is embedded in the E-step because q(u) changes with each</span>
+<span class="comment">% sequential observation.  The dynamical model is transformed into a static</span>
+<span class="comment">% model using temporal derivatives at each time point.  Continuity of the</span>
+<span class="comment">% conditional trajectories q(u,t) is assured by a continuous ascent of F(t)</span>
+<span class="comment">% in generalised co-ordinates.  This means DEM can deconvolve online and</span>
+<span class="comment">% represents an alternative to Kalman filtering or alternative Bayesian</span>
+<span class="comment">% update procedures.</span>
+<span class="comment">% q(u) &#12399;&#36880;&#27425;&#35251;&#28204;&#12372;&#12392;&#12395;&#22793;&#21270;&#12377;&#12427;&#12383;&#12417;&#12289;D-step &#12399; E-step &#12395;&#32068;&#12415;&#36796;&#12414;&#12428;&#12427;&#12290;</span>
+<span class="comment">% &#21205;&#30340;&#12514;&#12487;&#12523;&#12399;&#12289;&#21508;&#26178;&#28857;&#12391;&#12398;&#26178;&#38291;&#24494;&#20998;&#12434;&#29992;&#12356;&#12390;&#38745;&#30340;&#12514;&#12487;&#12523;&#12395;&#22793;&#25563;&#12373;&#12428;&#12427;&#12290;</span>
+<span class="comment">% &#26465;&#20214;&#20184;&#12365;&#36556;&#36947; q(u,t) &#12398;&#36899;&#32154;&#24615;&#12399;&#12289;&#19968;&#33324;&#21270;&#24231;&#27161;&#12395;&#12362;&#12369;&#12427; F(t) &#12398;&#36899;&#32154;&#30340;&#12394;&#19978;&#26119;&#12395;&#12424;&#12387;&#12390;</span>
+<span class="comment">% &#20445;&#35388;&#12373;&#12428;&#12414;&#12377;&#12290; &#12371;&#12428;&#12399;&#12289;DEM &#12364;&#12458;&#12531;&#12521;&#12452;&#12531;&#12391;&#20998;&#35299;&#12391;&#12365;&#12427;&#12371;&#12392;&#12434;&#24847;&#21619;&#12375;&#12289;</span>
+<span class="comment">% &#12459;&#12523;&#12510;&#12531;&#12501;&#12451;&#12523;&#12479;&#12522;&#12531;&#12464;&#12420;&#12505;&#12452;&#12474;&#26356;&#26032;&#25163;&#27861;&#12398;&#20195;&#26367;&#12392;&#12394;&#12427;&#12418;&#12398;&#12391;&#12354;&#12427;&#12290;</span>
+<span class="comment">%</span>
+<span class="comment">%__________________________________________________________________________</span>
+<span class="comment">% Copyright (C) 2008 Wellcome Trust Centre for Neuroimaging</span>
+
+<span class="comment">% Karl Friston</span>
+<span class="comment">% $Id: spm_ADEM.m 7679 2019-10-24 15:54:07Z spm $</span>
+
+<span class="comment">% check model, data, priors and unpack</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+DEM   = spm_ADEM_set(DEM);
+M     = DEM.M;
+G     = DEM.G;
+C     = DEM.C;
+U     = DEM.U;
+
+<span class="comment">% check whether to print</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="keyword">try</span>
+    db = DEM.db;
+<span class="keyword">catch</span>
+    db = 1;
+<span class="keyword">end</span>
+
+<span class="comment">% find or create a DEM figure</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="keyword">if</span> db
+    Fdem = spm_figure(<span class="string">'GetWin'</span>,<span class="string">'DEM'</span>);
+<span class="keyword">end</span>
+
+<span class="comment">% ensure embedding dimensions are compatible</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+G(1).E.n = M(1).E.n;
+G(1).E.d = M(1).E.n;
+
+
+<span class="comment">% order parameters (d = n = 1 for static models) and checks</span>
+<span class="comment">%==========================================================================</span>
+d    = M(1).E.d + 1;                      <span class="comment">% embedding order of q(v)</span>
+n    = M(1).E.n + 1;                      <span class="comment">% embedding order of q(x)</span>
+s    = M(1).E.s;                          <span class="comment">% smoothness - s.d. (bins)</span>
+
+
+<span class="comment">% number of states and parameters - generative model</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+nY   = size(C,2);                         <span class="comment">% number of samples</span>
+nl   = size(M,2);                         <span class="comment">% number of levels</span>
+nv   = sum(spm_vec(M.m));                 <span class="comment">% number of v (causal states)</span>
+nx   = sum(spm_vec(M.n));                 <span class="comment">% number of x (hidden states)</span>
+ny   = M(1).l;                            <span class="comment">% number of y (inputs)</span>
+nc   = M(end).l;                          <span class="comment">% number of c (prior causes)</span>
+nu   = nv*d + nx*n;                       <span class="comment">% number of generalised states</span>
+
+<span class="comment">% number of states and parameters - generative process</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+gr   = sum(spm_vec(G.l));                 <span class="comment">% number of v (outputs)</span>
+ga   = sum(spm_vec(G.k));                 <span class="comment">% number of a (active states)</span>
+gx   = sum(spm_vec(G.n));                 <span class="comment">% number of x (hidden states)</span>
+gy   = G(1).l;                            <span class="comment">% number of y (inputs)</span>
+na   = ga;                                <span class="comment">% number of a (action)</span>
+
+<span class="comment">% number of iterations</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="keyword">try</span>, nE = M(1).E.nE; <span class="keyword">catch</span>, nE = 16; <span class="keyword">end</span>
+<span class="keyword">try</span>, nM = M(1).E.nM; <span class="keyword">catch</span>, nM = 8;  <span class="keyword">end</span>
+<span class="keyword">try</span>, dt = M(1).E.dt; <span class="keyword">catch</span>, dt = 1;  <span class="keyword">end</span>
+
+
+<span class="comment">% initialise regularisation parameters</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+te = 2;                                   <span class="comment">% log integration time for E-Step</span>
+<span class="keyword">global</span> t
+
+
+<span class="comment">% precision (roughness) of generalised fluctuations</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+iV    = spm_DEM_R(n,s);
+iG    = spm_DEM_R(n,s);
+
+<span class="comment">% time-delay operators (absorb motor delays into motor gain matrix)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="keyword">try</span>
+    nG = norm(iG);
+    iG = iG*spm_DEM_T(n,-M(1).Ta);
+    iG = iG*nG/norm(iG);
+<span class="keyword">end</span>
+<span class="keyword">try</span>
+    Ty = spm_DEM_T(n,-M(1).Ty);
+    Ty = kron(Ty,speye(ny,ny));
+<span class="keyword">end</span>
+
+<span class="comment">% precision components Q{} requiring [Re]ML estimators (M-Step)</span>
+<span class="comment">%==========================================================================</span>
+Q     = {};
+<span class="keyword">for</span> i = 1:nl
+    q0{i,i} = sparse(M(i).l,M(i).l); <span class="comment">%#ok&lt;AGROW&gt;</span>
+    r0{i,i} = sparse(M(i).n,M(i).n);
+<span class="keyword">end</span>
+Q0    = kron(iV,spm_cat(q0));
+R0    = kron(iV,spm_cat(r0));
+<span class="keyword">for</span> i = 1:nl
+    <span class="keyword">for</span> j = 1:length(M(i).Q)
+        q          = q0;
+        q{i,i}     = M(i).Q{j};
+        Q{end + 1} = blkdiag(kron(iV,spm_cat(q)),R0);
+    <span class="keyword">end</span>
+    <span class="keyword">for</span> j = 1:length(M(i).R)
+        q          = r0;
+        q{i,i}     = M(i).R{j};
+        Q{end + 1} = blkdiag(Q0,kron(iV,spm_cat(q)));
+    <span class="keyword">end</span>
+<span class="keyword">end</span>
+
+
+<span class="comment">% and fixed components P</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+Q0    = kron(iV,spm_cat(spm_diag({M.V})));
+R0    = kron(iV,spm_cat(spm_diag({M.W})));
+Qp    = blkdiag(Q0,R0);
+nh    = length(Q);                           <span class="comment">% number of hyperparameters</span>
+iR    = [zeros(1,ny),ones(1,nv),ones(1,nx)]; <span class="comment">% for empirical priors</span>
+iR    = kron(speye(n,n),diag(iR));
+
+<span class="comment">% restriction or rate matrices - in terms of precision</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+q0{1} = G(1).U;
+Q0    = kron(iG,spm_cat(q0));
+R0    = kron(iG,spm_cat(r0));
+iG    = blkdiag(Q0,R0);
+
+<span class="comment">% restriction or rate matrices - in terms of dE/da</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="keyword">try</span>
+    R         = sparse(sum(spm_vec(G.l)),na);
+    R(1:ny,:) = G(1).R;
+    R         = kron(spm_speye(n,1,0),R);
+<span class="keyword">catch</span>
+    R = 1;
+<span class="keyword">end</span>
+
+<span class="comment">% fixed priors on action (a)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="keyword">try</span>
+    aP = G(1).aP;
+<span class="keyword">catch</span>
+    aP = exp(-2);
+<span class="keyword">end</span>
+
+<span class="comment">% fixed priors on states (u)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+xP    = spm_cat(spm_diag({M.xP}));
+Px    = kron(iV(1:n,1:n),speye(nx,nx)*exp(-8) + xP);
+Pv    = kron(iV(1:d,1:d),speye(nv,nv)*exp(-8));
+Pa    = spm_speye(na,na)*aP;
+Pu    = spm_cat(spm_diag({Px Pv}));
+
+<span class="comment">% hyperpriors</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+ph.h  = spm_vec({M.hE M.gE});             <span class="comment">% prior expectation of h</span>
+ph.c  = spm_cat(spm_diag({M.hC M.gC}));   <span class="comment">% prior covariances of h</span>
+qh.h  = ph.h;                             <span class="comment">% conditional expectation</span>
+qh.c  = ph.c;                             <span class="comment">% conditional covariance</span>
+ph.ic = spm_inv(ph.c);                    <span class="comment">% prior precision</span>
+
+<span class="comment">% priors on parameters (in reduced parameter space)</span>
+<span class="comment">%==========================================================================</span>
+pp.c  = cell(nl,nl);
+qp.p  = cell(nl,1);
+<span class="keyword">for</span> i = 1:(nl - 1)
+
+    <span class="comment">% eigenvector reduction: p &lt;- pE + qp.u*qp.p</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    qp.u{i}   = spm_svd(M(i).pC);                    <span class="comment">% basis for parameters</span>
+    M(i).p    = size(qp.u{i},2);                     <span class="comment">% number of qp.p</span>
+    qp.p{i}   = sparse(M(i).p,1);                    <span class="comment">% initial qp.p</span>
+    pp.c{i,i} = qp.u{i}'*M(i).pC*qp.u{i};            <span class="comment">% prior covariance</span>
+
+    <span class="keyword">try</span>
+        qp.e{i} = qp.p{i} + qp.u{i}'*(spm_vec(M(i).P) - spm_vec(M(i).pE));
+    <span class="keyword">catch</span>
+        qp.e{i} = qp.p{i};                           <span class="comment">% initial qp.e</span>
+    <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+Up    = spm_cat(spm_diag(qp.u));
+
+<span class="comment">% initialise and augment with confound parameters B; with flat priors</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+np    = sum(spm_vec(M.p));                  <span class="comment">% number of model parameters</span>
+pp.c  = spm_cat(pp.c);
+pp.ic = spm_inv(pp.c);
+
+<span class="comment">% initialise conditional density q(p) (for D-Step)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+qp.e  = spm_vec(qp.e);
+qp.c  = sparse(np,np);
+
+<span class="comment">% initialise cell arrays for D-Step; e{i + 1} = (d/dt)^i[e] = e[i]</span>
+<span class="comment">%==========================================================================</span>
+qu.x      = cell(n,1);
+qu.v      = cell(n,1);
+qu.a      = cell(1,1);
+qu.y      = cell(n,1);
+qu.u      = cell(n,1);
+pu.v      = cell(n,1);
+pu.x      = cell(n,1);
+pu.z      = cell(n,1);
+pu.w      = cell(n,1);
+
+[qu.x{:}] = deal(sparse(nx,1));
+[qu.v{:}] = deal(sparse(nv,1));
+[qu.a{:}] = deal(sparse(na,1));
+[qu.y{:}] = deal(sparse(ny,1));
+[qu.u{:}] = deal(sparse(nc,1));
+[pu.v{:}] = deal(sparse(gr,1));
+[pu.x{:}] = deal(sparse(gx,1));
+[pu.z{:}] = deal(sparse(gr,1));
+[pu.w{:}] = deal(sparse(gx,1));
+
+<span class="comment">% initialise cell arrays for hierarchical structure of x[0] and v[0]</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+qu.x{1}   = spm_vec({M(1:end - 1).x});
+qu.v{1}   = spm_vec({M(1 + 1:end).v});
+qu.a{1}   = spm_vec({G.a});
+pu.x{1}   = spm_vec({G.x});
+pu.v{1}   = spm_vec({G.v});
+
+
+<span class="comment">% derivatives for Jacobian of D-step</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+Dx    = kron(spm_speye(n,n,1),spm_speye(nx,nx,0));
+Dv    = kron(spm_speye(d,d,1),spm_speye(nv,nv,0));
+Dc    = kron(spm_speye(d,d,1),spm_speye(nc,nc,0));
+Da    = kron(spm_speye(1,1,1),sparse(na,na));
+Du    = spm_cat(spm_diag({Dx,Dv}));
+Dq    = spm_cat(spm_diag({Dx,Dv,Dc,Da}));
+
+Dx    = kron(spm_speye(n,n,1),spm_speye(gx,gx,0));
+Dv    = kron(spm_speye(n,n,1),spm_speye(gr,gr,0));
+Dp    = spm_cat(spm_diag({Dv,Dx,Dv,Dx}));
+dfdw  = kron(speye(n,n),speye(gx,gx));
+dydv  = kron(speye(n,n),speye(gy,gr));
+
+<span class="comment">% and null blocks</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+dVdc  = sparse(d*nc,1);
+
+<span class="comment">% gradients and curvatures for conditional uncertainty</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+dWdu  = sparse(nu,1);
+dWduu = sparse(nu,nu);
+
+<span class="comment">% preclude unnecessary iterations</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+<span class="keyword">if</span> ~np &amp;&amp; ~nh, nE = 1; <span class="keyword">end</span>
+
+
+<span class="comment">% create innovations (and add causes)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+[z,w]  = spm_DEM_z(G,nY);
+z{end} = C + z{end};
+a      = {G.a};
+Z      = spm_cat(z(:));
+W      = spm_cat(w(:));
+A      = spm_cat(a(:));
+
+<span class="comment">% Iterate DEM</span>
+<span class="comment">%==========================================================================</span>
+F      = -Inf;
+<span class="keyword">for</span> iE = 1:nE
+
+    <span class="comment">% get time and clear persistent variables in evaluation routines</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    tic; clear <span class="string">spm_DEM_eval</span>
+
+    <span class="comment">% E-Step: (with embedded D-Step)</span>
+    <span class="comment">%======================================================================</span>
+
+    <span class="comment">% [re-]set accumulators for E-Step</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    dFdp  = zeros(np,1);
+    dFdpp = zeros(np,np);
+    EE    = sparse(0);
+    ECE   = sparse(0);
+    EiSE  = sparse(0);
+    qp.ic = sparse(0);
+    Hqu.c = sparse(0);
+
+
+    <span class="comment">% [re-]set precisions using [hyper]parameter estimates</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    iS    = Qp;
+    <span class="keyword">for</span> i = 1:nh
+       iS = iS + Q{i}*exp(qh.h(i));
+    <span class="keyword">end</span>
+
+    <span class="comment">% precision for empirical priors</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    iP    = iR*iS*iR;
+
+    <span class="comment">% [re-]set states &amp; their derivatives</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    <span class="keyword">try</span>
+        qu = qU(1);
+        pu = pU(1);
+    <span class="keyword">end</span>
+
+    <span class="comment">% D-Step: (nY samples)</span>
+    <span class="comment">%======================================================================</span>
+    <span class="keyword">for</span> iY = 1:nY
+
+        <span class="comment">% time (GLOBAL variable for non-automomous systems)</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        t      = iY/nY;
+
+        <span class="comment">% pass action to pu.a (external states)</span>
+        <span class="comment">%==================================================================</span>
+        <span class="keyword">try</span>, A = spm_cat({qU.a qu.a}); <span class="keyword">end</span>
+
+        <span class="comment">% derivatives of responses and random fluctuations</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        pu.z = spm_DEM_embed(Z,n,iY);
+        pu.w = spm_DEM_embed(W,n,iY);
+        pu.a = spm_DEM_embed(A,n,iY);
+        qu.u = spm_DEM_embed(U,n,iY);
+
+
+        <span class="comment">% evaluate generative process</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        [pu,dg,df] = spm_ADEM_diff(G,pu);
+
+
+        <span class="comment">% and pass response to qu.y</span>
+        <span class="comment">%==================================================================</span>
+        <span class="keyword">for</span> i = 1:n
+            y       = spm_unvec(pu.v{i},{G.v});
+            qu.y{i} = y{1};
+        <span class="keyword">end</span>
+
+        <span class="comment">% sensory delays</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        <span class="keyword">try</span>, qu.y = spm_unvec(Ty*spm_vec(qu.y),qu.y); <span class="keyword">end</span>
+
+
+        <span class="comment">% evaluate generative model</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        [E,dE] = spm_DEM_eval(M,qu,qp);
+
+
+        <span class="comment">% conditional covariance [of states {u}]</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        qu.c   = spm_inv(dE.du'*iS*dE.du + Pu);
+        pu.c   = spm_inv(dE.du'*iP*dE.du + Pu);
+        Hqu.c  = Hqu.c + spm_logdet(qu.c);
+
+        <span class="comment">% save at qu(t)</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        qE{iY} = E;
+        qC{iY} = qu.c;
+        pC{iY} = pu.c;
+        qU(iY) = qu;
+        pU(iY) = pu;
+
+        <span class="comment">% and conditional precision</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        <span class="keyword">if</span> nh
+            ECEu  = dE.du*qu.c*dE.du';
+            ECEp  = dE.dp*qp.c*dE.dp';
+        <span class="keyword">end</span>
+
+
+        <span class="comment">% uncertainty about parameters dWdv, ... ; W = ln(|qp.c|)</span>
+        <span class="comment">%==================================================================</span>
+        <span class="keyword">if</span> np
+            <span class="keyword">for</span> i = 1:nu
+                CJp(:,i)   = spm_vec(qp.c*dE.dpu{i}'*iS);
+                dEdpu(:,i) = spm_vec(dE.dpu{i}');
+            <span class="keyword">end</span>
+            dWdu  = CJp'*spm_vec(dE.dp');
+            dWduu = CJp'*dEdpu;
+        <span class="keyword">end</span>
+
+        <span class="comment">% tensor products for Jacobian (generative process)</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        Dgda  = kron(spm_speye(n,1,1),dg.da);
+        Dgdv  = kron(spm_speye(n,n,1),dg.dv);
+        Dgdx  = kron(spm_speye(n,n,1),dg.dx);
+        dfda  = kron(spm_speye(n,1,0),df.da);
+        dfdv  = kron(spm_speye(n,n,0),df.dv);
+        dfdx  = kron(spm_speye(n,n,0),df.dx);
+
+        dgda  = kron(spm_speye(n,1,0),dg.da);
+        dgdx  = kron(spm_speye(n,n,0),dg.dx);
+
+        <span class="comment">% change in error w.r.t. action</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        Dfdx  = 0;
+        <span class="keyword">for</span> i = 1:n
+            Dfdx = Dfdx + kron(spm_speye(n,n,-i),df.dx^(i - 1));
+        <span class="keyword">end</span>
+
+        <span class="comment">% dE/da with restriction (R)</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        dE.dv = dE.dy*dydv;
+        dE.da = dE.dv*((dgda + dgdx*Dfdx*dfda).*R);
+
+
+        <span class="comment">% first-order derivatives</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        dVdu  = -dE.du'*iS*E - Pu*spm_vec({qu.x{1:n} qu.v{1:d}}) - dWdu/2;
+        dVda  = -dE.da'*iG*E - Pa*spm_vec( qu.a{1:1});
+
+
+        <span class="comment">% and second-order derivatives</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        dVduu = -dE.du'*iS*dE.du - Pu - dWduu/2 ;
+        dVdaa = -dE.da'*iG*dE.da - Pa;
+        dVduv = -dE.du'*iS*dE.dv;
+        dVduc = -dE.du'*iS*dE.dc;
+        dVdua = -dE.du'*iS*dE.da;
+        dVdav = -dE.da'*iG*dE.dv;
+        dVdau = -dE.da'*iG*dE.du;
+        dVdac = -dE.da'*iG*dE.dc;
+
+
+        <span class="comment">% D-step update: of causes v{i}, and hidden states x(i)</span>
+        <span class="comment">%==================================================================</span>
+
+        <span class="comment">% states and conditional modes</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        p     = {pu.v{1:n} pu.x{1:n} pu.z{1:n} pu.w{1:n}};
+        q     = {qu.x{1:n} qu.v{1:d} qu.u{1:d} qu.a{1:1}};
+        u     = [p q];
+
+        <span class="comment">% gradient</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        dFdu  = [                              Dp*spm_vec(p);
+                 spm_vec({dVdu; dVdc; dVda}) + Dq*spm_vec(q)];
+
+
+        <span class="comment">% Jacobian (variational flow)</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        dFduu = spm_cat(<span class="keyword">...</span>
+                {Dgdv  Dgdx Dv   []   []       []    Dgda;
+                 dfdv  dfdx []   dfdw []       []    dfda;
+                 []    []   Dv   []   []       []    [];
+                 []    []   []   Dx   []       []    [];
+                 dVduv []   []   []   Du+dVduu dVduc dVdua;
+                 []    []   []   []   []       Dc    []
+                 dVdav []   []   []   dVdau    dVdac dVdaa});
+
+
+        <span class="comment">% update states q = {x,v,z,w} and conditional modes</span>
+        <span class="comment">%==================================================================</span>
+        du    = spm_dx(dFduu,dFdu,dt);
+        u     = spm_unvec(spm_vec(u) + du,u);
+
+        <span class="comment">% and save them</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        pu.v(1:n) = u((1:n));
+        pu.x(1:n) = u((1:n) + n);
+        qu.x(1:n) = u((1:n) + n + n + n + n);
+        qu.v(1:d) = u((1:d) + n + n + n + n + n);
+        qu.a(1:1) = u((1:1) + n + n + n + n + n + d + d);
+
+
+        <span class="comment">% Gradients and curvatures for E-Step: W = tr(C*J'*iS*J)</span>
+        <span class="comment">%==================================================================</span>
+        <span class="keyword">if</span> np
+            <span class="keyword">for</span> i = 1:np
+                CJu(:,i)   = spm_vec(qu.c*dE.dup{i}'*iS);
+                dEdup(:,i) = spm_vec(dE.dup{i}');
+            <span class="keyword">end</span>
+            dWdp  = CJu'*spm_vec(dE.du');
+            dWdpp = CJu'*dEdup;
+
+            <span class="comment">% Accumulate; dF/dP = &lt;dL/dp&gt;, dF/dpp = ...</span>
+            <span class="comment">%--------------------------------------------------------------</span>
+            dFdp  = dFdp  - dWdp/2  - dE.dp'*iS*E;
+            dFdpp = dFdpp - dWdpp/2 - dE.dp'*iS*dE.dp;
+            qp.ic = qp.ic           + dE.dp'*iS*dE.dp;
+
+        <span class="keyword">end</span>
+
+        <span class="comment">% accumulate SSE</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        EiSE = EiSE + E'*iS*E;
+
+        <span class="comment">% and quantities for M-Step</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        <span class="keyword">if</span> nh
+            EE  = E*E'+ EE;
+            ECE = ECE + ECEu + ECEp;
+        <span class="keyword">end</span>
+
+        <span class="keyword">if</span> nE == 1
+
+            <span class="comment">% evaluate objective function (F)</span>
+            <span class="comment">%======================================================================</span>
+            J(iY) = - trace(E'*iS*E)/2  <span class="keyword">...</span><span class="comment">            % states (u)</span>
+                    + spm_logdet(qu.c)  <span class="keyword">...</span><span class="comment">            % entropy q(u)</span>
+                    + spm_logdet(iS)/2;                <span class="comment">% entropy - error</span>
+        <span class="keyword">end</span>
+
+    <span class="keyword">end</span> <span class="comment">% sequence (nY)</span>
+
+    <span class="comment">% augment with priors</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    dFdp   = dFdp  - pp.ic*qp.e;
+    dFdpp  = dFdpp - pp.ic;
+    qp.ic  = qp.ic + pp.ic;
+    qp.c   = spm_inv(qp.ic);
+
+
+    <span class="comment">% E-step: update expectation (p)</span>
+    <span class="comment">%======================================================================</span>
+
+    <span class="comment">% update conditional expectation</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    dp     = spm_dx(dFdpp,dFdp,{te});
+    qp.e   = qp.e + dp;
+    qp.p   = spm_unvec(qp.e,qp.p);
+
+
+    <span class="comment">% M-step - hyperparameters (h = exp(l))</span>
+    <span class="comment">%======================================================================</span>
+    mh     = zeros(nh,1);
+    dFdh   = zeros(nh,1);
+    dFdhh  = zeros(nh,nh);
+    <span class="keyword">for</span> iM = 1:nM
+
+        <span class="comment">% [re-]set precisions using [hyper]parameter estimates</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        iS    = Qp;
+        <span class="keyword">for</span> i = 1:nh
+            iS = iS + Q{i}*exp(qh.h(i));
+        <span class="keyword">end</span>
+        S     = spm_inv(iS);
+        dS    = ECE + EE - S*nY;
+
+        <span class="comment">% 1st-order derivatives: dFdh = dF/dh</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        <span class="keyword">for</span> i = 1:nh
+            dPdh{i}        =  Q{i}*exp(qh.h(i));
+            dFdh(i,1)      = -trace(dPdh{i}*dS)/2;
+        <span class="keyword">end</span>
+
+        <span class="comment">% 2nd-order derivatives: dFdhh</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        <span class="keyword">for</span> i = 1:nh
+            <span class="keyword">for</span> j = 1:nh
+                dFdhh(i,j) = -trace(dPdh{i}*S*dPdh{j}*S*nY)/2;
+            <span class="keyword">end</span>
+        <span class="keyword">end</span>
+
+        <span class="comment">% hyperpriors</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        qh.e  = qh.h  - ph.h;
+        dFdh  = dFdh  - ph.ic*qh.e;
+        dFdhh = dFdhh - ph.ic;
+
+        <span class="comment">% update ReML estimate of parameters</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        dh    = spm_dx(dFdhh,dFdh);
+        qh.h  = qh.h + dh;
+        mh    = mh   + dh;
+
+        <span class="comment">% conditional covariance of hyperparameters</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        qh.c  = -spm_inv(dFdhh);
+
+        <span class="comment">% convergence (M-Step)</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        <span class="keyword">if</span> (dFdh'*dh &lt; 1e-2) || (norm(dh,1) &lt; exp(-8)), <span class="keyword">break</span>, <span class="keyword">end</span>
+
+    <span class="keyword">end</span> <span class="comment">% M-Step</span>
+
+    <span class="comment">% evaluate objective function (F)</span>
+    <span class="comment">%======================================================================</span>
+    L   = - trace(EiSE)/2  <span class="keyword">...</span><span class="comment">               % states (u)</span>
+        - trace(qp.e'*pp.ic*qp.e)/2  <span class="keyword">...</span><span class="comment">     % parameters (p)</span>
+        - trace(qh.e'*ph.ic*qh.e)/2  <span class="keyword">...</span><span class="comment">     % hyperparameters (h)</span>
+        + Hqu.c/2             <span class="keyword">...</span><span class="comment">            % entropy q(u)</span>
+        + spm_logdet(qp.c)/2  <span class="keyword">...</span><span class="comment">            % entropy q(p)</span>
+        + spm_logdet(qh.c)/2  <span class="keyword">...</span><span class="comment">            % entropy q(h)</span>
+        - spm_logdet(pp.c)/2  <span class="keyword">...</span><span class="comment">            % entropy - prior p</span>
+        - spm_logdet(ph.c)/2  <span class="keyword">...</span><span class="comment">            % entropy - prior h</span>
+        + spm_logdet(iS)*nY/2 <span class="keyword">...</span><span class="comment">            % entropy - error</span>
+        - n*ny*nY*log(2*pi)/2;
+
+
+    <span class="comment">% if F is increasing, save expansion point and derivatives</span>
+    <span class="comment">%----------------------------------------------------------------------</span>
+    <span class="keyword">if</span> L &gt; F(end) || iE &lt; 3
+
+        <span class="comment">% save model-states (for each time point)</span>
+        <span class="comment">%==================================================================</span>
+        <span class="keyword">for</span> t = 1:length(qU)
+
+            <span class="comment">% states</span>
+            <span class="comment">%--------------------------------------------------------------</span>
+            a     = spm_unvec(qU(t).a{1},{G.a});
+            v     = spm_unvec(pU(t).v{1},{G.v});
+            x     = spm_unvec(pU(t).x{1},{G.x});
+            z     = spm_unvec(pU(t).z{1},{G.v});
+            w     = spm_unvec(pU(t).w{1},{G.x});
+            <span class="keyword">for</span> i = 1:nl
+                <span class="keyword">try</span>
+                    PU.v{i}(:,t) = spm_vec(v{i});
+                    PU.z{i}(:,t) = spm_vec(z{i});
+                <span class="keyword">end</span>
+                <span class="keyword">try</span>
+                    PU.x{i}(:,t) = spm_vec(x{i});
+                    PU.w{i}(:,t) = spm_vec(w{i});
+                <span class="keyword">end</span>
+                <span class="keyword">try</span>
+                    QU.a{i}(:,t) = spm_vec(a{i});
+                <span class="keyword">end</span>
+            <span class="keyword">end</span>
+
+            <span class="comment">% conditional modes</span>
+            <span class="comment">%--------------------------------------------------------------</span>
+            v     = spm_unvec(qU(t).v{1},{M(1 + 1:end).v});
+            x     = spm_unvec(qU(t).x{1},{M(1:end - 1).x});
+            z     = spm_unvec(qE{t}(1:(ny + nv)),{M.v});
+            w     = spm_unvec(qE{t}((1:nx) + (ny + nv)*n),{M.x});
+            <span class="keyword">for</span> i = 1:(nl - 1)
+                <span class="keyword">if</span> M(i).m, QU.v{i + 1}(:,t) = spm_vec(v{i}); <span class="keyword">end</span>
+                <span class="keyword">if</span> M(i).l, QU.z{i}(:,t)     = spm_vec(z{i}); <span class="keyword">end</span>
+                <span class="keyword">if</span> M(i).n, QU.x{i}(:,t)     = spm_vec(x{i}); <span class="keyword">end</span>
+                <span class="keyword">if</span> M(i).n, QU.w{i}(:,t)     = spm_vec(w{i}); <span class="keyword">end</span>
+            <span class="keyword">end</span>
+            QU.v{1}(:,t)  = spm_vec(qU(t).y{1}) - spm_vec(z{1});
+            QU.z{nl}(:,t) = spm_vec(z{nl});
+
+            <span class="comment">% and conditional covariances</span>
+            <span class="comment">%--------------------------------------------------------------</span>
+            i       = (1:nx);
+            QU.S{t} = qC{t}(i,i);
+            PU.S{t} = pC{t}(i,i);
+            i       = (1:nv) + nx*n;
+            QU.C{t} = qC{t}(i,i);
+            PU.C{t} = pC{t}(i,i);
+        <span class="keyword">end</span>
+
+        <span class="comment">% save conditional densities</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        B.QU  = QU;
+        B.PU  = PU;
+        B.qp  = qp;
+        B.qh  = qh;
+
+        <span class="comment">% decrease regularisation</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        F(iE) = L;
+        te    = min(te + 1,8);
+
+    <span class="keyword">else</span>
+
+        <span class="comment">% otherwise, return to previous expansion point and break</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        QU    = B.QU;
+        PU    = B.PU;
+        qp    = B.qp;
+        qh    = B.qh;
+
+        <span class="comment">% increase regularisation</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        F(iE) = F(end);
+        te    = min(te - 1,0);
+
+    <span class="keyword">end</span>
+
+    <span class="comment">% report and break if convergence</span>
+    <span class="comment">%======================================================================</span>
+    <span class="keyword">if</span> db
+        figure(Fdem)
+        spm_DEM_qU(QU)
+        <span class="keyword">if</span> np
+            subplot(nl,4,4*nl)
+            bar(full(Up*qp.e))
+            xlabel({<span class="string">'parameters'</span>;<span class="string">'{minus prior}'</span>})
+            axis <span class="string">square</span>, grid <span class="string">on</span>
+        <span class="keyword">end</span>
+        <span class="keyword">if</span> length(F) &gt; 2
+            subplot(nl,4,4*nl - 1)
+            plot(F - F(1))
+            xlabel(<span class="string">'updates'</span>)
+            title(<span class="string">'log-evidence'</span>)
+            axis <span class="string">square</span>, grid <span class="string">on</span>
+        <span class="keyword">end</span>
+        drawnow
+
+        <span class="comment">% report (EM-Steps)</span>
+        <span class="comment">%------------------------------------------------------------------</span>
+        str{1} = sprintf(<span class="string">'ADEM: %i (%i)'</span>,iE,iM);
+        str{2} = sprintf(<span class="string">'F:%.4e'</span>,full(L - F(1)));
+        str{3} = sprintf(<span class="string">'p:%.2e'</span>,full(dp'*dp));
+        str{4} = sprintf(<span class="string">'h:%.2e'</span>,full(mh'*mh));
+        str{5} = sprintf(<span class="string">'(%.2e sec)'</span>,full(toc));
+
+        fprintf(<span class="string">'%-16s%-16s%-14s%-14s%-16s\n'</span>,str{:})
+    <span class="keyword">end</span>
+
+    <span class="keyword">if</span> (norm(dp,1) &lt; exp(-8)) &amp;&amp; (norm(mh,1) &lt; exp(-8)), <span class="keyword">break</span>, <span class="keyword">end</span>
+
+<span class="keyword">end</span>
+
+<span class="comment">% assemble output arguments</span>
+<span class="comment">%==========================================================================</span>
+
+<span class="comment">% conditional moments of model-parameters (rotated into original space)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+qP.P   = spm_unvec(Up*qp.e + spm_vec(M.pE),M.pE);
+qP.C   = Up*qp.c*Up';
+qP.V   = spm_unvec(diag(qP.C),M.pE);
+
+<span class="comment">% conditional moments of hyper-parameters (log-transformed)</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+qH.h   = spm_unvec(qh.h,{{M.hE} {M.gE}});
+qH.g   = qH.h{2};
+qH.h   = qH.h{1};
+qH.C   = qh.c;
+qH.V   = spm_unvec(diag(qH.C),{{M.hE} {M.gE}});
+qH.W   = qH.V{2};
+qH.V   = qH.V{1};
+
+<span class="comment">% Fill in DEM with response and its causes</span>
+<span class="comment">%--------------------------------------------------------------------------</span>
+DEM.pP.P = {G.pE};            <span class="comment">% parameters encoding process</span>
+
+DEM.M  = M;                   <span class="comment">% generative model</span>
+DEM.U  = U;                   <span class="comment">% causes</span>
+DEM.Y  = PU.v{1};             <span class="comment">% response</span>
+
+DEM.pU = PU;                  <span class="comment">% prior moments of model-states</span>
+DEM.qU = QU;                  <span class="comment">% conditional moments of model-states</span>
+DEM.qP = qP;                  <span class="comment">% conditional moments of model-parameters</span>
+DEM.qH = qH;                  <span class="comment">% conditional moments of hyper-parameters</span>
+
+DEM.F  = F;                   <span class="comment">% [-ve] Free energy</span>
+<span class="keyword">try</span>
+    DEM.J  = J;               <span class="comment">% [-ve] Free energy (over samples)</span>
+<span class="keyword">end</span>
+</pre><pre class="codeoutput error">&#20837;&#21147;&#24341;&#25968;&#12364;&#19981;&#36275;&#12375;&#12390;&#12356;&#12414;&#12377;&#12290;
+
+&#12456;&#12521;&#12540;: spm_ADEM (&#34892; 162)
+DEM   = spm_ADEM_set(DEM);
+</pre><p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2022b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+function [DEM] = spm_ADEM(DEM)
+% Dynamic expectation maximisation:  Active inversion
+% FORMAT DEM   = spm_ADEM(DEM)
+%
+% DEM.G  - generative process
+% DEM.M  - recognition  model
+% DEM.C  - causes
+% DEM.U  - prior expectation of causes
+%__________________________________________________________________________
+%
+% This implementation of DEM is the same as spm_DEM but integrates both the
+% generative process and model inversion in parallel. Its functionality is 
+% exactly the same apart from the fact that confounds are not accommodated
+% explicitly.  The generative model is specified by DEM.G and the veridical
+% causes by DEM.C; these may or may not be used as priors on the causes for
+% the inversion model DEM.M (i.e., DEM.U = DEM.C).  Clearly, DEM.G does not
+% require any priors or precision components; it will use the values of the
+% parameters specified in the prior expectation fields.
+%
+% This routine is not used for model inversion per se but to simulate the
+% dynamical inversion of models.  Critically, it includes action 
+% variables a - that couple the model back to the generative process 
+% This enables active inference (c.f., action-perception) or embodied 
+% inference.
+%
+% hierarchical models M(i)
+% 階層型モデル
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%   M(i).g  = y(t)  = g(x,v,P)    {inline function, string or m-file}
+%   M(i).f  = dx/dt = f(x,v,P)    {inline function, string or m-file}
+%
+%   M(i).pE = prior expectation of p model-parameters
+%   M(i).pC = prior covariances of p model-parameters
+%   M(i).hE = prior expectation of h hyper-parameters (cause noise)
+%   M(i).hC = prior covariances of h hyper-parameters (cause noise)
+%   M(i).gE = prior expectation of g hyper-parameters (state noise)
+%   M(i).gC = prior covariances of g hyper-parameters (state noise)
+%   M(i).Q  = precision components (input noise)
+%   M(i).R  = precision components (state noise)
+%   M(i).V  = fixed precision (input noise)
+%   M(i).W  = fixed precision (state noise)
+%   M(i).xP = precision (states)
+%
+%   M(i).m  = number of inputs v(i + 1);
+%   M(i).n  = number of states x(i)
+%   M(i).l  = number of output v(i)
+%   M(i).k  = number of action a(i)
+
+% hierarchical process G(i)
+% 階層過程G(i)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%   G(i).g  = y(t)  = g(x,v,a,P)    {inline function, string or m-file}
+%   G(i).f  = dx/dt = f(x,v,a,P)    {inline function, string or m-file}
+%
+%   G(i).pE = model-parameters
+%   G(i).U  = precision (action)
+%   G(i).V  = precision (input noise)
+%   G(i).W  = precision (state noise)
+%
+%   G(1).R  = restriction or rate matrix for action [default: 1];
+%   G(i).aP = precision (action)   [default: exp(-2)]
+%
+%   G(i).m  = number of inputs v(i + 1);
+%   G(i).n  = number of states x(i)
+%   G(i).l  = number of output v(i)
+%   G(i).k  = number of action a(i)
+%
+%
+% Returns the following fields of DEM
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%
+% true model-states - u
+% 真のモデル状態 - u
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%   pU.x    = true hidden states
+%   pU.v    = true causal states v{1} = response (Y)
+%   pU.C    = prior covariance: cov(v)
+%   pU.S    = prior covariance: cov(x)
+%
+% model-parameters - p
+% モデルパラメータ - p
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%   pP.P    = parameters for each level
+%
+% hyper-parameters (log-transformed) - h,g
+% ハイパーパラメータ(log - 対数変換) - h,g
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%   pH.h    = cause noise
+%   pH.g    = state noise
+%
+% conditional moments of model-states - q(u)
+% モデル状態で条件付きモーメント - q(u)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%   qU.a    = Action
+%   qU.x    = Conditional expectation of hidden states
+%   qU.v    = Conditional expectation of causal states
+%   qU.z    = Conditional prediction errors (v)
+%   qU.C    = Conditional covariance: cov(v)
+%   qU.S    = Conditional covariance: cov(x)
+%
+% conditional moments of model-parameters - q(p)
+% モデルパラメータで条件付きモーメント - q(p)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%   qP.P    = Conditional expectation
+%   qP.C    = Conditional covariance
+%
+% conditional moments of hyper-parameters (log-transformed) - q(h)
+% ハイパーパラメータの条件付きモーメント(log 対数変換) - q(h)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+%   qH.h    = Conditional expectation (cause noise)
+%   qH.g    = Conditional expectation (state noise)
+%   qH.C    = Conditional covariance
+%
+% F         = log evidence = log marginal likelihood = negative free energy
+% F         = 負の自由エネルギー
+%__________________________________________________________________________
+%
+% spm_ADEM implements a variational Bayes (VB) scheme under the Laplace
+% approximation to the conditional densities of states (u), parameters (p)
+% and hyperparameters (h) of any analytic nonlinear hierarchical dynamic
+% model, with additive Gaussian innovations.  It comprises three
+% variational steps (D,E and M) that update the conditional moments of u, p
+% and h respectively
+% spm_ADEM は、加法的ガウスイノベーションを持つ解析的非線形階層的動的モデルの状態
+% (u), パラメータ (p), ハイパーパラメータ (h) の条件密度に対するラプラス近似のもと
+% 変分ベイズ (VB) スキームを実装しています.  これは3つの変分ステップ(D,E,M)から
+% なり、u, p およびhの条件付きモーメントをそれぞれ更新する
+%
+%                D: qu.u = max <L>q(p,h)
+%                E: qp.p = max <L>q(u,h)
+%                M: qh.h = max <L>q(u,p)
+%
+% where qu.u corresponds to the conditional expectation of hidden states x
+% and causal states v and so on.  L is the ln p(y,u,p,h|M) under the model
+% M. The conditional covariances obtain analytically from the curvature of
+% L with respect to u, p and h.
+% ここで、qu.u は隠れ状態 x と因果状態 v などの条件付き期待値に対応する。
+% LはモデルMの下でのln p(y,u,p,h|M) であり、条件付き共分散はu, p, hに関する
+% Lの曲率から解析的に得られる
+%
+% The D-step is embedded in the E-step because q(u) changes with each
+% sequential observation.  The dynamical model is transformed into a static
+% model using temporal derivatives at each time point.  Continuity of the
+% conditional trajectories q(u,t) is assured by a continuous ascent of F(t)
+% in generalised co-ordinates.  This means DEM can deconvolve online and 
+% represents an alternative to Kalman filtering or alternative Bayesian
+% update procedures.
+% q(u) は逐次観測ごとに変化するため、D-step は E-step に組み込まれる。 
+% 動的モデルは、各時点での時間微分を用いて静的モデルに変換される。 
+% 条件付き軌道 q(u,t) の連続性は、一般化座標における F(t) の連続的な上昇によって
+% 保証されます。 これは、DEM がオンラインで分解できることを意味し、
+% カルマンフィルタリングやベイズ更新手法の代替となるものである。
+%
+%__________________________________________________________________________
+% Copyright (C) 2008 Wellcome Trust Centre for Neuroimaging
+ 
+% Karl Friston
+% $Id: spm_ADEM.m 7679 2019-10-24 15:54:07Z spm $
+ 
+% check model, data, priors and unpack
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+DEM   = spm_ADEM_set(DEM);
+M     = DEM.M;
+G     = DEM.G;
+C     = DEM.C;
+U     = DEM.U;
+
+% check whether to print 
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+try
+    db = DEM.db;
+catch
+    db = 1;
+end
+
+% find or create a DEM figure
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+if db
+    Fdem = spm_figure('GetWin','DEM');
+end
+ 
+% ensure embedding dimensions are compatible
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+G(1).E.n = M(1).E.n;
+G(1).E.d = M(1).E.n;
+ 
+
+% order parameters (d = n = 1 for static models) and checks
+%==========================================================================
+d    = M(1).E.d + 1;                      % embedding order of q(v)
+n    = M(1).E.n + 1;                      % embedding order of q(x)
+s    = M(1).E.s;                          % smoothness - s.d. (bins)
+
+
+% number of states and parameters - generative model
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+nY   = size(C,2);                         % number of samples
+nl   = size(M,2);                         % number of levels
+nv   = sum(spm_vec(M.m));                 % number of v (causal states)
+nx   = sum(spm_vec(M.n));                 % number of x (hidden states)
+ny   = M(1).l;                            % number of y (inputs)
+nc   = M(end).l;                          % number of c (prior causes)
+nu   = nv*d + nx*n;                       % number of generalised states
+ 
+% number of states and parameters - generative process
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+gr   = sum(spm_vec(G.l));                 % number of v (outputs)
+ga   = sum(spm_vec(G.k));                 % number of a (active states)
+gx   = sum(spm_vec(G.n));                 % number of x (hidden states)
+gy   = G(1).l;                            % number of y (inputs)
+na   = ga;                                % number of a (action)
+ 
+% number of iterations
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+try, nE = M(1).E.nE; catch, nE = 16; end
+try, nM = M(1).E.nM; catch, nM = 8;  end
+try, dt = M(1).E.dt; catch, dt = 1;  end
+ 
+ 
+% initialise regularisation parameters
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+te = 2;                                   % log integration time for E-Step
+global t
+
+
+% precision (roughness) of generalised fluctuations
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+iV    = spm_DEM_R(n,s);
+iG    = spm_DEM_R(n,s);
+
+% time-delay operators (absorb motor delays into motor gain matrix)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+try
+    nG = norm(iG);
+    iG = iG*spm_DEM_T(n,-M(1).Ta);
+    iG = iG*nG/norm(iG);
+end
+try
+    Ty = spm_DEM_T(n,-M(1).Ty);
+    Ty = kron(Ty,speye(ny,ny));
+end
+ 
+% precision components Q{} requiring [Re]ML estimators (M-Step)
+%==========================================================================
+Q     = {};
+for i = 1:nl
+    q0{i,i} = sparse(M(i).l,M(i).l); %#ok<AGROW>
+    r0{i,i} = sparse(M(i).n,M(i).n);
+end
+Q0    = kron(iV,spm_cat(q0));
+R0    = kron(iV,spm_cat(r0));
+for i = 1:nl
+    for j = 1:length(M(i).Q)
+        q          = q0;
+        q{i,i}     = M(i).Q{j};
+        Q{end + 1} = blkdiag(kron(iV,spm_cat(q)),R0);
+    end
+    for j = 1:length(M(i).R)
+        q          = r0;
+        q{i,i}     = M(i).R{j};
+        Q{end + 1} = blkdiag(Q0,kron(iV,spm_cat(q)));
+    end
+end
+ 
+ 
+% and fixed components P
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+Q0    = kron(iV,spm_cat(spm_diag({M.V})));
+R0    = kron(iV,spm_cat(spm_diag({M.W})));
+Qp    = blkdiag(Q0,R0);
+nh    = length(Q);                           % number of hyperparameters
+iR    = [zeros(1,ny),ones(1,nv),ones(1,nx)]; % for empirical priors
+iR    = kron(speye(n,n),diag(iR)); 
+
+% restriction or rate matrices - in terms of precision
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+q0{1} = G(1).U;
+Q0    = kron(iG,spm_cat(q0));
+R0    = kron(iG,spm_cat(r0));
+iG    = blkdiag(Q0,R0);
+
+% restriction or rate matrices - in terms of dE/da
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+try
+    R         = sparse(sum(spm_vec(G.l)),na);
+    R(1:ny,:) = G(1).R;
+    R         = kron(spm_speye(n,1,0),R);
+catch
+    R = 1;
+end
+
+% fixed priors on action (a)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+try
+    aP = G(1).aP;
+catch
+    aP = exp(-2);
+end
+
+% fixed priors on states (u)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+xP    = spm_cat(spm_diag({M.xP}));
+Px    = kron(iV(1:n,1:n),speye(nx,nx)*exp(-8) + xP);
+Pv    = kron(iV(1:d,1:d),speye(nv,nv)*exp(-8));
+Pa    = spm_speye(na,na)*aP;
+Pu    = spm_cat(spm_diag({Px Pv}));
+ 
+% hyperpriors
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+ph.h  = spm_vec({M.hE M.gE});             % prior expectation of h
+ph.c  = spm_cat(spm_diag({M.hC M.gC}));   % prior covariances of h
+qh.h  = ph.h;                             % conditional expectation
+qh.c  = ph.c;                             % conditional covariance
+ph.ic = spm_inv(ph.c);                    % prior precision
+ 
+% priors on parameters (in reduced parameter space)
+%==========================================================================
+pp.c  = cell(nl,nl);
+qp.p  = cell(nl,1);
+for i = 1:(nl - 1)
+ 
+    % eigenvector reduction: p <- pE + qp.u*qp.p
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    qp.u{i}   = spm_svd(M(i).pC);                    % basis for parameters
+    M(i).p    = size(qp.u{i},2);                     % number of qp.p
+    qp.p{i}   = sparse(M(i).p,1);                    % initial qp.p
+    pp.c{i,i} = qp.u{i}'*M(i).pC*qp.u{i};            % prior covariance
+    
+    try
+        qp.e{i} = qp.p{i} + qp.u{i}'*(spm_vec(M(i).P) - spm_vec(M(i).pE));
+    catch
+        qp.e{i} = qp.p{i};                           % initial qp.e
+    end
+ 
+end
+Up    = spm_cat(spm_diag(qp.u));
+ 
+% initialise and augment with confound parameters B; with flat priors
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+np    = sum(spm_vec(M.p));                  % number of model parameters
+pp.c  = spm_cat(pp.c);
+pp.ic = spm_inv(pp.c);
+ 
+% initialise conditional density q(p) (for D-Step)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+qp.e  = spm_vec(qp.e);
+qp.c  = sparse(np,np);
+ 
+% initialise cell arrays for D-Step; e{i + 1} = (d/dt)^i[e] = e[i]
+%==========================================================================
+qu.x      = cell(n,1);
+qu.v      = cell(n,1);
+qu.a      = cell(1,1);
+qu.y      = cell(n,1);
+qu.u      = cell(n,1);
+pu.v      = cell(n,1);
+pu.x      = cell(n,1);
+pu.z      = cell(n,1);
+pu.w      = cell(n,1);
+ 
+[qu.x{:}] = deal(sparse(nx,1));
+[qu.v{:}] = deal(sparse(nv,1));
+[qu.a{:}] = deal(sparse(na,1));
+[qu.y{:}] = deal(sparse(ny,1));
+[qu.u{:}] = deal(sparse(nc,1));
+[pu.v{:}] = deal(sparse(gr,1));
+[pu.x{:}] = deal(sparse(gx,1));
+[pu.z{:}] = deal(sparse(gr,1));
+[pu.w{:}] = deal(sparse(gx,1));
+ 
+% initialise cell arrays for hierarchical structure of x[0] and v[0]
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+qu.x{1}   = spm_vec({M(1:end - 1).x});
+qu.v{1}   = spm_vec({M(1 + 1:end).v});
+qu.a{1}   = spm_vec({G.a});
+pu.x{1}   = spm_vec({G.x});
+pu.v{1}   = spm_vec({G.v});
+ 
+ 
+% derivatives for Jacobian of D-step
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+Dx    = kron(spm_speye(n,n,1),spm_speye(nx,nx,0));
+Dv    = kron(spm_speye(d,d,1),spm_speye(nv,nv,0));
+Dc    = kron(spm_speye(d,d,1),spm_speye(nc,nc,0));
+Da    = kron(spm_speye(1,1,1),sparse(na,na));
+Du    = spm_cat(spm_diag({Dx,Dv}));
+Dq    = spm_cat(spm_diag({Dx,Dv,Dc,Da}));
+ 
+Dx    = kron(spm_speye(n,n,1),spm_speye(gx,gx,0));
+Dv    = kron(spm_speye(n,n,1),spm_speye(gr,gr,0));
+Dp    = spm_cat(spm_diag({Dv,Dx,Dv,Dx}));
+dfdw  = kron(speye(n,n),speye(gx,gx));
+dydv  = kron(speye(n,n),speye(gy,gr));
+ 
+% and null blocks
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+dVdc  = sparse(d*nc,1);
+ 
+% gradients and curvatures for conditional uncertainty
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+dWdu  = sparse(nu,1);
+dWduu = sparse(nu,nu);
+ 
+% preclude unnecessary iterations
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+if ~np && ~nh, nE = 1; end
+ 
+ 
+% create innovations (and add causes)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+[z,w]  = spm_DEM_z(G,nY);
+z{end} = C + z{end};
+a      = {G.a};
+Z      = spm_cat(z(:));
+W      = spm_cat(w(:));
+A      = spm_cat(a(:));
+ 
+% Iterate DEM
+%==========================================================================
+F      = -Inf;
+for iE = 1:nE
+    
+    % get time and clear persistent variables in evaluation routines
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    tic; clear spm_DEM_eval
+ 
+    % E-Step: (with embedded D-Step)
+    %======================================================================
+ 
+    % [re-]set accumulators for E-Step
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    dFdp  = zeros(np,1);
+    dFdpp = zeros(np,np);
+    EE    = sparse(0);
+    ECE   = sparse(0);
+    EiSE  = sparse(0);
+    qp.ic = sparse(0);
+    Hqu.c = sparse(0);
+ 
+ 
+    % [re-]set precisions using [hyper]parameter estimates
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    iS    = Qp;
+    for i = 1:nh
+       iS = iS + Q{i}*exp(qh.h(i));
+    end
+    
+    % precision for empirical priors
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    iP    = iR*iS*iR;
+    
+    % [re-]set states & their derivatives
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    try
+        qu = qU(1);
+        pu = pU(1);
+    end
+ 
+    % D-Step: (nY samples)
+    %======================================================================
+    for iY = 1:nY
+ 
+        % time (GLOBAL variable for non-automomous systems)
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        t      = iY/nY;
+        
+        % pass action to pu.a (external states)
+        %==================================================================
+        try, A = spm_cat({qU.a qu.a}); end
+        
+        % derivatives of responses and random fluctuations
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        pu.z = spm_DEM_embed(Z,n,iY);
+        pu.w = spm_DEM_embed(W,n,iY);
+        pu.a = spm_DEM_embed(A,n,iY);
+        qu.u = spm_DEM_embed(U,n,iY);
+        
+        
+        % evaluate generative process
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        [pu,dg,df] = spm_ADEM_diff(G,pu);
+ 
+        
+        % and pass response to qu.y
+        %==================================================================
+        for i = 1:n
+            y       = spm_unvec(pu.v{i},{G.v});
+            qu.y{i} = y{1};
+        end
+        
+        % sensory delays
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        try, qu.y = spm_unvec(Ty*spm_vec(qu.y),qu.y); end
+        
+        
+        % evaluate generative model
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH       
+        [E,dE] = spm_DEM_eval(M,qu,qp);
+ 
+        
+        % conditional covariance [of states {u}]
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        qu.c   = spm_inv(dE.du'*iS*dE.du + Pu);
+        pu.c   = spm_inv(dE.du'*iP*dE.du + Pu);
+        Hqu.c  = Hqu.c + spm_logdet(qu.c);
+        
+        % save at qu(t)
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        qE{iY} = E;
+        qC{iY} = qu.c;
+        pC{iY} = pu.c;
+        qU(iY) = qu;
+        pU(iY) = pu;
+ 
+        % and conditional precision
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        if nh
+            ECEu  = dE.du*qu.c*dE.du';
+            ECEp  = dE.dp*qp.c*dE.dp';
+        end
+ 
+        
+        % uncertainty about parameters dWdv, ... ; W = ln(|qp.c|)
+        %==================================================================
+        if np
+            for i = 1:nu
+                CJp(:,i)   = spm_vec(qp.c*dE.dpu{i}'*iS);
+                dEdpu(:,i) = spm_vec(dE.dpu{i}');
+            end
+            dWdu  = CJp'*spm_vec(dE.dp');
+            dWduu = CJp'*dEdpu;
+        end
+        
+        % tensor products for Jacobian (generative process)
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        Dgda  = kron(spm_speye(n,1,1),dg.da);
+        Dgdv  = kron(spm_speye(n,n,1),dg.dv);
+        Dgdx  = kron(spm_speye(n,n,1),dg.dx);
+        dfda  = kron(spm_speye(n,1,0),df.da);
+        dfdv  = kron(spm_speye(n,n,0),df.dv);
+        dfdx  = kron(spm_speye(n,n,0),df.dx);
+        
+        dgda  = kron(spm_speye(n,1,0),dg.da);
+        dgdx  = kron(spm_speye(n,n,0),dg.dx);
+        
+        % change in error w.r.t. action
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        Dfdx  = 0;
+        for i = 1:n
+            Dfdx = Dfdx + kron(spm_speye(n,n,-i),df.dx^(i - 1));
+        end
+        
+        % dE/da with restriction (R)
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        dE.dv = dE.dy*dydv;
+        dE.da = dE.dv*((dgda + dgdx*Dfdx*dfda).*R);
+
+        
+        % first-order derivatives
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        dVdu  = -dE.du'*iS*E - Pu*spm_vec({qu.x{1:n} qu.v{1:d}}) - dWdu/2;
+        dVda  = -dE.da'*iG*E - Pa*spm_vec( qu.a{1:1});
+        
+        
+        % and second-order derivatives
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        dVduu = -dE.du'*iS*dE.du - Pu - dWduu/2 ;
+        dVdaa = -dE.da'*iG*dE.da - Pa;
+        dVduv = -dE.du'*iS*dE.dv;
+        dVduc = -dE.du'*iS*dE.dc;
+        dVdua = -dE.du'*iS*dE.da;
+        dVdav = -dE.da'*iG*dE.dv;
+        dVdau = -dE.da'*iG*dE.du;
+        dVdac = -dE.da'*iG*dE.dc;
+ 
+         
+        % D-step update: of causes v{i}, and hidden states x(i)
+        %==================================================================
+ 
+        % states and conditional modes
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        p     = {pu.v{1:n} pu.x{1:n} pu.z{1:n} pu.w{1:n}};
+        q     = {qu.x{1:n} qu.v{1:d} qu.u{1:d} qu.a{1:1}};
+        u     = [p q];  
+        
+        % gradient
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        dFdu  = [                              Dp*spm_vec(p); 
+                 spm_vec({dVdu; dVdc; dVda}) + Dq*spm_vec(q)];
+ 
+ 
+        % Jacobian (variational flow)
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        dFduu = spm_cat(...
+                {Dgdv  Dgdx Dv   []   []       []    Dgda;
+                 dfdv  dfdx []   dfdw []       []    dfda;
+                 []    []   Dv   []   []       []    [];
+                 []    []   []   Dx   []       []    [];
+                 dVduv []   []   []   Du+dVduu dVduc dVdua;
+                 []    []   []   []   []       Dc    []
+                 dVdav []   []   []   dVdau    dVdac dVdaa});
+ 
+ 
+        % update states q = {x,v,z,w} and conditional modes
+        %==================================================================
+        du    = spm_dx(dFduu,dFdu,dt);
+        u     = spm_unvec(spm_vec(u) + du,u);
+ 
+        % and save them
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        pu.v(1:n) = u((1:n));
+        pu.x(1:n) = u((1:n) + n);
+        qu.x(1:n) = u((1:n) + n + n + n + n);
+        qu.v(1:d) = u((1:d) + n + n + n + n + n);
+        qu.a(1:1) = u((1:1) + n + n + n + n + n + d + d);
+        
+
+        % Gradients and curvatures for E-Step: W = tr(C*J'*iS*J)
+        %==================================================================
+        if np
+            for i = 1:np
+                CJu(:,i)   = spm_vec(qu.c*dE.dup{i}'*iS);
+                dEdup(:,i) = spm_vec(dE.dup{i}');
+            end
+            dWdp  = CJu'*spm_vec(dE.du');
+            dWdpp = CJu'*dEdup;
+ 
+            % Accumulate; dF/dP = <dL/dp>, dF/dpp = ...
+            %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+            dFdp  = dFdp  - dWdp/2  - dE.dp'*iS*E;
+            dFdpp = dFdpp - dWdpp/2 - dE.dp'*iS*dE.dp;
+            qp.ic = qp.ic           + dE.dp'*iS*dE.dp;
+            
+        end
+ 
+        % accumulate SSE
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        EiSE = EiSE + E'*iS*E;
+        
+        % and quantities for M-Step
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        if nh
+            EE  = E*E'+ EE;
+            ECE = ECE + ECEu + ECEp;
+        end
+        
+        if nE == 1
+            
+            % evaluate objective function (F)
+            %======================================================================
+            J(iY) = - trace(E'*iS*E)/2  ...            % states (u)
+                    + spm_logdet(qu.c)  ...            % entropy q(u)
+                    + spm_logdet(iS)/2;                % entropy - error
+        end
+        
+    end % sequence (nY)
+ 
+    % augment with priors
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    dFdp   = dFdp  - pp.ic*qp.e;
+    dFdpp  = dFdpp - pp.ic;
+    qp.ic  = qp.ic + pp.ic;
+    qp.c   = spm_inv(qp.ic);
+ 
+ 
+    % E-step: update expectation (p)
+    %======================================================================
+ 
+    % update conditional expectation
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    dp     = spm_dx(dFdpp,dFdp,{te});
+    qp.e   = qp.e + dp;
+    qp.p   = spm_unvec(qp.e,qp.p);
+ 
+ 
+    % M-step - hyperparameters (h = exp(l))
+    %======================================================================
+    mh     = zeros(nh,1);
+    dFdh   = zeros(nh,1);
+    dFdhh  = zeros(nh,nh);
+    for iM = 1:nM
+ 
+        % [re-]set precisions using [hyper]parameter estimates
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        iS    = Qp;
+        for i = 1:nh
+            iS = iS + Q{i}*exp(qh.h(i));
+        end
+        S     = spm_inv(iS);
+        dS    = ECE + EE - S*nY;
+         
+        % 1st-order derivatives: dFdh = dF/dh
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        for i = 1:nh
+            dPdh{i}        =  Q{i}*exp(qh.h(i));
+            dFdh(i,1)      = -trace(dPdh{i}*dS)/2;
+        end
+ 
+        % 2nd-order derivatives: dFdhh
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        for i = 1:nh
+            for j = 1:nh
+                dFdhh(i,j) = -trace(dPdh{i}*S*dPdh{j}*S*nY)/2;
+            end
+        end
+ 
+        % hyperpriors
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        qh.e  = qh.h  - ph.h;
+        dFdh  = dFdh  - ph.ic*qh.e;
+        dFdhh = dFdhh - ph.ic;
+ 
+        % update ReML estimate of parameters
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        dh    = spm_dx(dFdhh,dFdh);
+        qh.h  = qh.h + dh;
+        mh    = mh   + dh;
+ 
+        % conditional covariance of hyperparameters
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        qh.c  = -spm_inv(dFdhh);
+ 
+        % convergence (M-Step)
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        if (dFdh'*dh < 1e-2) || (norm(dh,1) < exp(-8)), break, end
+ 
+    end % M-Step
+ 
+    % evaluate objective function (F)
+    %======================================================================
+    L   = - trace(EiSE)/2  ...               % states (u)
+        - trace(qp.e'*pp.ic*qp.e)/2  ...     % parameters (p)
+        - trace(qh.e'*ph.ic*qh.e)/2  ...     % hyperparameters (h)
+        + Hqu.c/2             ...            % entropy q(u)
+        + spm_logdet(qp.c)/2  ...            % entropy q(p)
+        + spm_logdet(qh.c)/2  ...            % entropy q(h)
+        - spm_logdet(pp.c)/2  ...            % entropy - prior p
+        - spm_logdet(ph.c)/2  ...            % entropy - prior h
+        + spm_logdet(iS)*nY/2 ...            % entropy - error
+        - n*ny*nY*log(2*pi)/2;
+    
+    
+    % if F is increasing, save expansion point and derivatives
+    %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+    if L > F(end) || iE < 3
+   
+        % save model-states (for each time point)
+        %==================================================================
+        for t = 1:length(qU)
+ 
+            % states
+            %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+            a     = spm_unvec(qU(t).a{1},{G.a});
+            v     = spm_unvec(pU(t).v{1},{G.v});
+            x     = spm_unvec(pU(t).x{1},{G.x});
+            z     = spm_unvec(pU(t).z{1},{G.v});
+            w     = spm_unvec(pU(t).w{1},{G.x});
+            for i = 1:nl
+                try
+                    PU.v{i}(:,t) = spm_vec(v{i});
+                    PU.z{i}(:,t) = spm_vec(z{i});
+                end
+                try
+                    PU.x{i}(:,t) = spm_vec(x{i});
+                    PU.w{i}(:,t) = spm_vec(w{i});
+                end
+                try
+                    QU.a{i}(:,t) = spm_vec(a{i});
+                end
+            end
+ 
+            % conditional modes
+            %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+            v     = spm_unvec(qU(t).v{1},{M(1 + 1:end).v});
+            x     = spm_unvec(qU(t).x{1},{M(1:end - 1).x});
+            z     = spm_unvec(qE{t}(1:(ny + nv)),{M.v});
+            w     = spm_unvec(qE{t}((1:nx) + (ny + nv)*n),{M.x});
+            for i = 1:(nl - 1)
+                if M(i).m, QU.v{i + 1}(:,t) = spm_vec(v{i}); end
+                if M(i).l, QU.z{i}(:,t)     = spm_vec(z{i}); end
+                if M(i).n, QU.x{i}(:,t)     = spm_vec(x{i}); end
+                if M(i).n, QU.w{i}(:,t)     = spm_vec(w{i}); end
+            end
+            QU.v{1}(:,t)  = spm_vec(qU(t).y{1}) - spm_vec(z{1});
+            QU.z{nl}(:,t) = spm_vec(z{nl});
+ 
+            % and conditional covariances
+            %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+            i       = (1:nx);
+            QU.S{t} = qC{t}(i,i);
+            PU.S{t} = pC{t}(i,i);
+            i       = (1:nv) + nx*n;
+            QU.C{t} = qC{t}(i,i);
+            PU.C{t} = pC{t}(i,i);
+        end
+ 
+        % save conditional densities
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        B.QU  = QU;
+        B.PU  = PU;
+        B.qp  = qp;
+        B.qh  = qh;
+ 
+        % decrease regularisation
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        F(iE) = L;
+        te    = min(te + 1,8);
+ 
+    else
+ 
+        % otherwise, return to previous expansion point and break
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        QU    = B.QU;
+        PU    = B.PU;
+        qp    = B.qp;
+        qh    = B.qh;
+ 
+        % increase regularisation
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        F(iE) = F(end);
+        te    = min(te - 1,0);
+        
+    end
+ 
+    % report and break if convergence
+    %======================================================================
+    if db
+        figure(Fdem)
+        spm_DEM_qU(QU)
+        if np
+            subplot(nl,4,4*nl)
+            bar(full(Up*qp.e))
+            xlabel({'parameters';'{minus prior}'})
+            axis square, grid on
+        end
+        if length(F) > 2
+            subplot(nl,4,4*nl - 1)
+            plot(F - F(1))
+            xlabel('updates')
+            title('log-evidence')
+            axis square, grid on
+        end
+        drawnow
+        
+        % report (EM-Steps)
+        %REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+        str{1} = sprintf('ADEM: %i (%i)',iE,iM);
+        str{2} = sprintf('F:%.4e',full(L - F(1)));
+        str{3} = sprintf('p:%.2e',full(dp'*dp));
+        str{4} = sprintf('h:%.2e',full(mh'*mh));
+        str{5} = sprintf('(%.2e sec)',full(toc));
+        
+        fprintf('%-16s%-16s%-14s%-14s%-16s\n',str{:})
+    end
+    
+    if (norm(dp,1) < exp(-8)) && (norm(mh,1) < exp(-8)), break, end
+ 
+end
+ 
+% assemble output arguments
+%==========================================================================
+
+% conditional moments of model-parameters (rotated into original space)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+qP.P   = spm_unvec(Up*qp.e + spm_vec(M.pE),M.pE);
+qP.C   = Up*qp.c*Up';
+qP.V   = spm_unvec(diag(qP.C),M.pE);
+ 
+% conditional moments of hyper-parameters (log-transformed)
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+qH.h   = spm_unvec(qh.h,{{M.hE} {M.gE}});
+qH.g   = qH.h{2};
+qH.h   = qH.h{1};
+qH.C   = qh.c;
+qH.V   = spm_unvec(diag(qH.C),{{M.hE} {M.gE}});
+qH.W   = qH.V{2};
+qH.V   = qH.V{1};
+ 
+% Fill in DEM with response and its causes
+%REPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASHREPLACE_WITH_DASH_DASH
+DEM.pP.P = {G.pE};            % parameters encoding process
+
+DEM.M  = M;                   % generative model
+DEM.U  = U;                   % causes
+DEM.Y  = PU.v{1};             % response
+
+DEM.pU = PU;                  % prior moments of model-states
+DEM.qU = QU;                  % conditional moments of model-states
+DEM.qP = qP;                  % conditional moments of model-parameters
+DEM.qH = qH;                  % conditional moments of hyper-parameters
+ 
+DEM.F  = F;                   % [-ve] Free energy
+try
+    DEM.J  = J;               % [-ve] Free energy (over samples)
+end
+
+##### SOURCE END #####
+--></body></html>
