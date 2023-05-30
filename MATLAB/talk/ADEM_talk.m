@@ -17,7 +17,8 @@ G(1).E.d = 2;                           % smoothness
 % パラメータ
 %--------------------------------------------------------------------------
 P.a     = 0;
-P.b     = 0;
+P.b     = [0 0];
+P.c     = [0 0 0 0];
 P.d     = 0;
 P0      = P;
 pC      = speye(length(spm_vec(P)));
@@ -51,6 +52,7 @@ G(1).fq = 'spm_mountaincar_Q';
 %--------------------------------------------------------------------------
 nx      = 32;
 x{1}    = linspace(-1,1,nx);
+x{2}    = linspace(-1,1,nx);
 [X,x]   = spm_ndgrid(x);
 G(1).X  = X;
  
@@ -68,11 +70,12 @@ if DEMO
     % KL制御による架空の力のパラメータ制御
     %----------------------------------------------------------------------
     P.a = 0.1;
-    P.b = 0.2;
+    P.b = [0.2 0.2];
+    P.c = [0.1 0.32 0.3 0.4];
     P.d = 0;
     
     if DEMO > 1
-        P   = spm_fmin('spm_mountaincar_fun',P,pC,G);
+        P   = spm_fmin('spm_talk_fun',P,pC,G);
         P.d = 0;
     end
     
@@ -105,14 +108,14 @@ M     = G;
 M(1).pE = P0;
 subplot(3,2,1)
 spm_fp_display_density(M,x);
-xlabel('position','Fontsize',12)
-ylabel('velocity','Fontsize',12)
+xlabel('emotions','Fontsize',12)
+ylabel('rilationship','Fontsize',12)
 title('flow and equilibrium density','Fontsize',16)
  
 subplot(3,2,2)
 spm_fp_display_nullclines(M,x);
-xlabel('position','Fontsize',12)
-ylabel('velocity','Fontsize',12)
+xlabel('emotions','Fontsize',12)
+ylabel('rilationship','Fontsize',12)
 title('nullclines','Fontsize',16)
  
 % controlled flow (P0)
@@ -121,14 +124,14 @@ title('nullclines','Fontsize',16)
 M(1).pE = P;
 subplot(3,2,3)
 spm_fp_display_density(M,x);
-xlabel('position','Fontsize',12)
-ylabel('velocity','Fontsize',12)
+xlabel('emotions','Fontsize',12)
+ylabel('rilationship','Fontsize',12)
 title('controlled','Fontsize',16)
  
 subplot(3,2,4)
 spm_fp_display_nullclines(M,x);
-xlabel('position','Fontsize',12)
-ylabel('velocity','Fontsize',12)
+xlabel('emotions','Fontsize',12)
+ylabel('rilationship','Fontsize',12)
 title('controlled','Fontsize',16)
 drawnow
  
