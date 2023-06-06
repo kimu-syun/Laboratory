@@ -1,6 +1,25 @@
-function ADEM_talk
+function ADEM_learning
+% Value learning demo using the mountain car problem. This demo questions
+% the need for reinforcement learning and related paradigms from
+% machine-learning, when trying to optimise the behaviour of an agent.  We
+% show that it is fairly simple to teach an agent complicated and adaptive
+% behaviours under the free-energy principle.  This principle suggests that
+% agents adjust their internal states and sampling of the environment to
+% minimize their free-energy.  In this context, free-energy represents a
+% bound on the probability of being in a particular state, given the nature
+% of the agent, or more specifically the model of the environment an agent
+% entails.  We show that such agents learn causal structure in the
+% environment and sample it in an adaptive and self-supervised fashion.
+% The result is a behavioural policy that reproduces exactly the policies
+% that are optimised by reinforcement learning and dynamic programming.
+% Critically, at no point do we need to invoke the notion of reward, value
+% or utility.
 
-% ADEM_learningを基にした実行ファイル
+%__________________________________________________________________________
+% Copyright (C) 2008 Wellcome Trust Centre for Neuroimaging
+ 
+% Karl Friston
+% $Id: ADEM_learning.m 6801 2016-05-29 19:18:06Z karl $
  
  
 % generative model
@@ -26,8 +45,8 @@ pC(end) = 0;
  
 % level 1
 %--------------------------------------------------------------------------
-G(1).x  = [1.5; 0];  %初期位置
-G(1).f  = 'spm_fx_talk';
+G(1).x  = [0; 0];
+G(1).f  = 'spm_fx_mountaincar';
 G(1).g  = @(x,v,a,P) x;
 G(1).pE = P;
 G(1).pC = pC;
@@ -69,29 +88,28 @@ if DEMO
     % Optimise parameters of fictive forces using KL control
     % KL制御による架空の力のパラメータ制御
     %----------------------------------------------------------------------
-    P.a = 0.1;
-    P.b = [0.2 0.2];
-    P.c = [0.1 0.32 0.3 0.4];
+    P.a = 2.8985;
+    P.b = [-1.7468 3.3942];
+    P.c = [-1.0146 -0.0021 -4.7885 -0.6077];
     P.d = 0;
     
     if DEMO > 1
-        P   = spm_fmin('spm_talk_fun',P,pC,G);
+        P   = spm_fmin('spm_mountaincar_fun',P,pC,G);
         P.d = 0;
     end
     
     G(1).pE = P;
     disp(P)
-    save spm_talk_model G
+    save mountaincar_model G
 end
  
  
 % or load previously optimised environment
 % また、事前に最適化された環境をロードする
 %--------------------------------------------------------------------------
-
-load spm_talk_model
+load mountaincar_model
 P     = G(1).pE;
-
+ 
 % plot flow fields and nullclines
 % フローフィールドとヌルクラインをプロット
 %==========================================================================
@@ -108,14 +126,14 @@ M     = G;
 M(1).pE = P0;
 subplot(3,2,1)
 spm_fp_display_density(M,x);
-xlabel('emotions','Fontsize',12)
-ylabel('rilationship','Fontsize',12)
+xlabel('position','Fontsize',12)
+ylabel('velocity','Fontsize',12)
 title('flow and equilibrium density','Fontsize',16)
  
 subplot(3,2,2)
 spm_fp_display_nullclines(M,x);
-xlabel('emotions','Fontsize',12)
-ylabel('rilationship','Fontsize',12)
+xlabel('position','Fontsize',12)
+ylabel('velocity','Fontsize',12)
 title('nullclines','Fontsize',16)
  
 % controlled flow (P0)
@@ -124,14 +142,14 @@ title('nullclines','Fontsize',16)
 M(1).pE = P;
 subplot(3,2,3)
 spm_fp_display_density(M,x);
-xlabel('emotions','Fontsize',12)
-ylabel('rilationship','Fontsize',12)
+xlabel('position','Fontsize',12)
+ylabel('velocity','Fontsize',12)
 title('controlled','Fontsize',16)
  
 subplot(3,2,4)
 spm_fp_display_nullclines(M,x);
-xlabel('emotions','Fontsize',12)
-ylabel('rilationship','Fontsize',12)
+xlabel('position','Fontsize',12)
+ylabel('velocity','Fontsize',12)
 title('controlled','Fontsize',16)
 drawnow
  
@@ -139,7 +157,6 @@ drawnow
 % recognition model: learn the controlled environmental dynamics
 % 識別モデル：制御された環境ダイナミクスの学習
 %==========================================================================
-%{
 M       = G;
 M(1).g  = @(x,v,P)x;
  
@@ -247,6 +264,6 @@ clf, subplot(3,1,2)
 drawnow
 spm_mountaincar_movie(DEM)
 title('click car for movie','FontSize',16)
-%}
+
 
 
