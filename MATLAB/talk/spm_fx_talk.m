@@ -81,9 +81,9 @@ if x(2) >= 1.5
     f     = [x(2); a + v - dHdx - x(2)/eta]*dt;
 else
     if x(1) >= -1.5
-        f     = [x(2); 0]*dt
+        f     = [x(2); 0]*dt;
     else
-        f     = [0; 0]*dt
+        f     = [0; 0]*dt;
     end
     
 end
