@@ -26,7 +26,7 @@ pC(end) = 0;
  
 % level 1
 %--------------------------------------------------------------------------
-G(1).x  = [1.5; 0];  %初期位置
+G(1).x  = [1; 0];  %初期位置
 G(1).f  = 'spm_fx_talk';
 G(1).g  = @(x,v,a,P) x;
 G(1).pE = P;
@@ -45,7 +45,7 @@ G       = spm_ADEM_M_set(G);
 % desired equilibrium density and state space
 % 望ましい平衡密度と状態空間
 %==========================================================================
-G(1).fq = 'spm_mountaincar_Q';
+G(1).fq = 'spm_talk_Q';
  
 % create X - coordinates of evaluation grid
 % 評価グリッドの座標を作成
@@ -69,9 +69,9 @@ if DEMO
     % Optimise parameters of fictive forces using KL control
     % KL制御による架空の力のパラメータ制御
     %----------------------------------------------------------------------
-    P.a = 0.1;
-    P.b = [0.2 0.2];
-    P.c = [0.1 0.32 0.3 0.4];
+    P.a = 1.0827;
+    P.b = [2.2477 -2.5260];
+    P.c = [0.8925 4.1188 -0.6901 1.3095];
     P.d = 0;
     
     if DEMO > 1
@@ -108,14 +108,14 @@ M     = G;
 M(1).pE = P0;
 subplot(3,2,1)
 spm_fp_display_density(M,x);
-xlabel('emotions','Fontsize',12)
-ylabel('rilationship','Fontsize',12)
+xlabel('Emotion','Fontsize',12)
+ylabel('Relationship','Fontsize',12)
 title('flow and equilibrium density','Fontsize',16)
  
 subplot(3,2,2)
 spm_fp_display_nullclines(M,x);
-xlabel('emotions','Fontsize',12)
-ylabel('rilationship','Fontsize',12)
+xlabel('Emotion','Fontsize',12)
+ylabel('Relationship','Fontsize',12)
 title('nullclines','Fontsize',16)
  
 % controlled flow (P0)
@@ -124,14 +124,14 @@ title('nullclines','Fontsize',16)
 M(1).pE = P;
 subplot(3,2,3)
 spm_fp_display_density(M,x);
-xlabel('emotions','Fontsize',12)
-ylabel('rilationship','Fontsize',12)
+xlabel('Emotion','Fontsize',12)
+ylabel('Relationship','Fontsize',12)
 title('controlled','Fontsize',16)
  
 subplot(3,2,4)
 spm_fp_display_nullclines(M,x);
-xlabel('emotions','Fontsize',12)
-ylabel('rilationship','Fontsize',12)
+xlabel('Emotion','Fontsize',12)
+ylabel('Relationship','Fontsize',12)
 title('controlled','Fontsize',16)
 drawnow
  
@@ -139,7 +139,7 @@ drawnow
 % recognition model: learn the controlled environmental dynamics
 % 識別モデル：制御された環境ダイナミクスの学習
 %==========================================================================
-%{
+
 M       = G;
 M(1).g  = @(x,v,P)x;
  
@@ -175,10 +175,10 @@ DEM.U = C;
 if DEMO
     DEM.M(1).E.nE = 16;
     DEM           = spm_ADEM(DEM);
-    save mountaincar_model G DEM
+    save spm_talk_model G DEM
 end
 
-load mountaincar_model
+load spm_talk_model
 
  
 % replace priors with learned conditional expectation
@@ -191,14 +191,14 @@ M(1).pC = [];
 
 subplot(3,2,5)
 spm_fp_display_density(M,x);
-xlabel('position','Fontsize',12)
-ylabel('velocity','Fontsize',12)
+xlabel('Emotion','Fontsize',12)
+ylabel('relationship','Fontsize',12)
 title('learnt','Fontsize',16)
  
 subplot(3,2,6)
 spm_fp_display_nullclines(M,x);
-xlabel('position','Fontsize',12)
-ylabel('velocity','Fontsize',12)
+xlabel('Emotion','Fontsize',12)
+ylabel('Relationship','Fontsize',12)
 title('learnt','Fontsize',16)
 
  

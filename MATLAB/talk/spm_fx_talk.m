@@ -77,16 +77,22 @@ a     = tanh((P.d*a + P.a + P.b*x + P.c*kron(x,x))/2);
 dt    = 1/4;
 dHdx = 2*x(1);
 
-if x(2) >= 1.5
-    f     = [x(2); a + v - dHdx - x(2)/eta]*dt;
+f = [x(2); a + v - dHdx + x(2)/eta]*dt;
+
+
+%{
+if -1.0 <= x(2)
+    f = [x(2); a + v - dHdx + x(2)/eta]*dt;
+elseif x(1) <= -0.5
+    f = [0; 0]*dt;
+elseif x(1) <= 0
+    f = [x(2); 0]*dt;
 else
-    if x(1) >= -1.5
-        f     = [x(2); 0]*dt;
-    else
-        f     = [0; 0]*dt;
-    end
-    
+    f = [x(2); a + v - dHdx + x(2)/eta]*dt;
 end
+%}
+
+
 
 return
 

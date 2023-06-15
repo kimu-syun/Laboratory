@@ -1,4 +1,4 @@
-function [Q] = spm_mountaincar_Q(x)
+function [Q] = spm_talk_Q(x)
 % Desired ensemble density
 % FORMAT [Q] = spm_mountaincar_Q(x)
 %
@@ -15,7 +15,7 @@ function [Q] = spm_mountaincar_Q(x)
 %--------------------------------------------------------------------------
 [n m] = size(x);
 Q     = sparse(n,1);
-qE    = [1.5 -1; 0 0];
+qE    = [1.5 -1; 1.5 0];
 m     = length(qE);
 m     = 1; %***
 qC    = [(2/32)^2 0; 0 (2/32)^2];
