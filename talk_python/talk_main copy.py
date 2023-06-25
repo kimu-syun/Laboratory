@@ -8,7 +8,7 @@ from math import log
 import random
 import pandas as pd
 
-# 変数設定(x,y,a)する構造体
+# agentの情報保存
 class agent:
 
     def __init__(self):
@@ -68,7 +68,7 @@ for a in range(0, action_range):
 
 
 # 選好の分布作成 p~(y)
-preference_distribution = np.array([0.1, 0.2, 0.4, 0.5, 0.8])
+preference_distribution = np.array([0.2, 0.2, 0.2, 0.2, 0.2])
 
 
 
