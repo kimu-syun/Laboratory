@@ -1,2 +1,2 @@
 
-import numpy as np
+    det_covariance = np.linalg.det(covariance)
