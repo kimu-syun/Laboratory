@@ -69,7 +69,7 @@ def belief_sensory_distribution_make(likelihood_distribution, belief_hiddenstate
             for x in range(0, hidden_state_range):
                 belief_sensory_distribution[a, y] = \
                     belief_sensory_distribution[a, y] + (likelihood_distribution[a, x, y] * belief_hiddenstate_distribution[a, x]) # q(y|a) = Σ_x{p(y|x)*q(x)}
-    np.savetxt(f"./data/child/belief_sensory_distribution/epoch_{epoch}_action_{a}.csv", belief_sensory_distribution, fmt="%.5f")
+    np.savetxt(f"./data/child/belief_sensory_distribution/epoch_{epoch}.csv", belief_sensory_distribution, fmt="%.5f")
     return belief_sensory_distribution
 
 
@@ -122,21 +122,43 @@ def qxUpdate(belief_hiddenstate_distribution, belief_conditional_hiddenstate_dis
     return belief_hiddenstate_distribution
 
 
-def child_inference(child, epoch):
-    child.belief_sensory_distribution = belief_sensory_distribution_make(child.likelihood_distribution, child.belief_hiddenstate_distribution, child.belief_sensory_distribution, epoch) #q(y|x,a)
-    child.belief_conditional_hiddenstate_distribution = belief_conditional_hiddenstate_distribution_make(child.likelihood_distribution, child.belief_hiddenstate_distribution, child.belief_sensory_distribution, child.belief_conditional_hiddenstate_distribution, epoch) #q(x|y,a)
+# xを更新
+def xUpdate(belief_conditional_hiddenstate_distribution, action, y_signal):
+    x = np.argmax(belief_conditional_hiddenstate_distribution[action][:][y_signal])
+    relation = x % 5
+    emotion = (x - relation) // 5
+    return np.array([emotion, relation])
 
+# p~(y)を更新
+def preference_distribution_Update(preference_distribution, hidden_state):
+    if hidden_state[1] == 1:
+        preference_distribution = np.array([0.1, (0.9/4), (0.9/4), (0.9/4), (0.9/4)])
+    else:
+        preference_distribution = np.array([0.2, 0.2, 0.2, 0.2, 0.2])
+    return preference_distribution
+
+
+
+def child_inference(child, epoch):
     # FE,ev,ps初期化
     child.epistemic_value = np.zeros(action_range)
     child.predicted_surprised = np.zeros(action_range)
     child.F_expected = np.zeros(action_range)
+
+    child.belief_sensory_distribution = belief_sensory_distribution_make(child.likelihood_distribution, child.belief_hiddenstate_distribution, child.belief_sensory_distribution, epoch) #q(y|x,a)
+    child.belief_conditional_hiddenstate_distribution = belief_conditional_hiddenstate_distribution_make(child.likelihood_distribution, child.belief_hiddenstate_distribution, child.belief_sensory_distribution, child.belief_conditional_hiddenstate_distribution, epoch) #q(x|y,a)
+
+    # 隠れ状態xの更新
+    child.hidden_state = xUpdate(child.belief_conditional_hiddenstate_distribution, child.action, child.sensory)
+    # 選好分布の更新
+    child.preference_distribution = preference_distribution_Update(child.preference_distribution, child.hidden_state)
 
     # FE計算
     child.epistemic_value = epistemic_value_calculate(child.belief_hiddenstate_distribution, child.belief_sensory_distribution, child.belief_conditional_hiddenstate_distribution, child.epistemic_value, epoch)
     child.predicted_surprised = predicted_surprised_calculate(child.belief_sensory_distribution, child.preference_distribution, child.predicted_surprised, epoch)
     child.F_expected = F_expected_calculate(child.epistemic_value, child.predicted_surprised, child.F_expected, epoch)
     child.action = np.argmin(child.F_expected)
-    # q(x)更新
-    child.belief_hiddenstate_distribution = qxUpdate(child.belief_hiddenstate_distribution, child.belief_conditional_hiddenstate_distribution, child.sensory, child.action, epoch)
+    # q(x)
+    child.belief_hiddenstate_distribution, child.hidden_state = qxUpdate(child.belief_hiddenstate_distribution, child.belief_conditional_hiddenstate_distribution, child.sensory, child.action, epoch)
 
     return child
