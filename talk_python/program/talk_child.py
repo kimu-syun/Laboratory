@@ -158,7 +158,7 @@ def child_inference(child, epoch):
     child.predicted_surprised = predicted_surprised_calculate(child.belief_sensory_distribution, child.preference_distribution, child.predicted_surprised, epoch)
     child.F_expected = F_expected_calculate(child.epistemic_value, child.predicted_surprised, child.F_expected, epoch)
     child.action = np.argmin(child.F_expected)
-    # q(x)
-    child.belief_hiddenstate_distribution, child.hidden_state = qxUpdate(child.belief_hiddenstate_distribution, child.belief_conditional_hiddenstate_distribution, child.sensory, child.action, epoch)
+    # q(x)の更新
+    child.belief_hiddenstate_distribution = qxUpdate(child.belief_hiddenstate_distribution, child.belief_conditional_hiddenstate_distribution, child.sensory, child.action, epoch)
 
     return child

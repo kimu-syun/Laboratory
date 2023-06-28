@@ -50,25 +50,34 @@ child.belief_hiddenstate_distribution = program.talk_child.belief_hiddenstate_di
 child.preference_distribution = program.talk_child.preference_distribution_make(child.preference_distribution)
 
 # 親の分布の作成(p(y|x,a), q(x|a), p~(y))
-child.likelihood_distribution = program.talk_child.likelihood_distribution_make(child.likelihood_distribution)
-child.belief_hiddenstate_distribution = program.talk_child.belief_hiddenstate_distribution_make(child.belief_hiddenstate_distribution)
-child.preference_distribution = program.talk_child.preference_distribution_make(child.preference_distribution)
+parent.likelihood_distribution = program.talk_parent.likelihood_distribution_make(parent.likelihood_distribution)
+parent.belief_hiddenstate_distribution = program.talk_parent.belief_hiddenstate_distribution_make(parent.belief_hiddenstate_distribution)
+parent.preference_distribution = program.talk_parent.preference_distribution_make(parent.preference_distribution)
 
 
 # active inference
 epoch = 12
+parent.action = 3 #親の初期行動
 
 for i in range(0, epoch):
     print(f"{i+1}回目")
 
+    # 親の行動⇒子の感覚
+    a = parent.action
+    s = a
+    child.sensory = a
+
     # 子の推論
-    child.sensory = random.randint(0, 4)
-    print(f"感覚信号 : {child.sensory}")
+    print(f"子供の感覚信号 : {child.sensory}")
     child = program.talk_child.child_inference(child, i)
-    print(f"action{child.action}, FE{child.F_expected}")
+    print(f"子供  action{child.action}, FE{child.F_expected}")
+
+    # 子の行動⇒親の感覚
+    a = child.action
+    s = a
+    parent.sensory = s
 
     # 親の推論
-    # parent.sensory = random.randint(0, 4)
-    # print(f"感覚信号 : {parent.sensory}")
-    # parent = program.talk_parent.parent_inference(parent, i)
-    # print(f"action{parent.action}, FE{child.F_expected}")
+    print(f"親の感覚信号 : {parent.sensory}")
+    parent = program.talk_parent.parent_inference(parent, i)
+    print(f"親    action{parent.action}, FE{child.F_expected}")
