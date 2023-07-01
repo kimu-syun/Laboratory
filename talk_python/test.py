@@ -1,66 +1,38 @@
+# グラフ描画
 import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import pandas as pd
+import matplotlib.pyplot as plt
+import japanize_matplotlib
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-# 各時間ステップごとのデータを生成する関数（例としてランダムなデータを使用）
-def generate_data():
-    return np.random.rand(100, 100)  # 100x100のランダムなデータを生成
-
-# 時間のステップ数を指定
 time_steps = 10
 
-# サブプロットを作成
-fig = make_subplots(rows=1, cols=1, subplot_titles=['2D Probability Distribution'])
 
-# ヒートマップを更新するための関数
-def update_heatmap(t):
-    data = generate_data()  # データを取得または生成
-
-    fig.data = []  # 既存のデータをクリア
-
-    # ヒートマップを追加
-    fig.add_trace(
-        go.Heatmap(
-            z=data,
-            colorscale='hot',
-            zmin=0,
-            zmax=1,
-            showscale=(t == 0),  # 条件式により True/False を指定
-            zauto=False,
-            zmid=0.5,
-            name='2D Probability Distribution'
-        ),
-        row=1, col=1
-    )
-
-    # レイアウトを設定
-    fig.update_layout(
-        title=f'2D Probability Distribution - Time Step {t}',
-        xaxis=dict(title='X'),
-        yaxis=dict(title='Y'),
-        coloraxis=dict(colorbar=dict(title='Density')),
-        showlegend=False
-    )
-
-# 初回のヒートマップを描画
-update_heatmap(0)
+# データ入力
+df = pd.read_csv("./data/child/likelihood_distribution/action_0.csv", sep=" ", header=None)
+#print(df[0].to_numpy().reshape([5, -1], order="F"))
 
 
-# ボタンを作成して時間の切り替えを制御
-buttons = []
-for t in range(time_steps):
-    button = dict(
-        label=f'Time Step {t}',
-        method='update',
-        args=[{'visible': [False] * time_steps}, {'title': f'2D Probability Distribution - Time Step {t}'}]
-    )
-    button['args'][0]['visible'][t] = True
-    button['args'][0]['visible'][0] = True  # 初回は可視化
-    button['args'][1]['title'] = f'2D Probability Distribution - Time Step {t}'
-    buttons.append(button)
 
-# レイアウトにボタンを追加
-fig.update_layout(updatemenus=[dict(buttons=buttons, direction='down', showactive=True)])
+# figure作成
+fig, axes = plt.subplots(3, 2, tight_layout=True, figsize = (8, 10))
+fig.suptitle("尤度分布 $p(y|x,a)$")
+fig.delaxes(axes[2, 1])
 
-# グラフを表示
-fig.show()
+
+for i in range(0, 5):
+    axes[i//2][i%2].set_xlabel("emotion")
+    axes[i//2][i%2].set_ylabel("relation")
+    axes[i//2][i%2].grid()
+    axes[i//2][i%2].set_title(f"$y$ = {i+1}")
+    axes[i//2][i%2].set_xlim(left=0, right=4)
+    axes[i//2][i%2].set_ylim(bottom=0, top=4)
+    heatmap = axes[i//2][i%2].imshow(df[i].to_numpy().reshape([5, -1], order="F"), origin="lower", vmin = 0, vmax = 1)
+
+
+divider = make_axes_locatable(axes[2,1])
+cax = divider.append_axes("bottom", size="5%", pad=0.5) #append_axesで新しいaxesを作成
+
+fig.colorbar(heatmap, cax=cax, orientation="horizontal") #新しく作成したaxesであるcaxを渡す。
+
+plt.show()
