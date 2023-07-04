@@ -33,9 +33,13 @@ def gaussian(x, mu, sigma):
 def likelihood_distribution_make(likelihood_distribution):
     for a in range(0, action_range):
         for x in range(0, hidden_state_range):
+            sum = 0
             for y in range(0, sensory_range):
                 likelihood_distribution[a, x, y] = stats.norm.pdf(x = y, loc = a + (x % 5) / float(8), scale = 1.0)
-            # print(a, x, '期待値 :', a + (x % 5) / float(8),likelihood_distribution[a, x])
+                sum = sum + likelihood_distribution[a, x, y]
+            # 正規化(yについて)
+            for y in range(0, sensory_range):
+                likelihood_distribution[a, x, y] = likelihood_distribution[a, x, y] / float(sum)
             # 尤度分布をcsv保存
         np.savetxt(f"./data/child/likelihood_distribution/action_{a}.csv", likelihood_distribution[a], fmt="%.5f")
     return likelihood_distribution
@@ -48,10 +52,14 @@ def belief_hiddenstate_distribution_make(belief_hiddenstate_distribution):
     for a in range(0, action_range):
         belief_distribution_mu = np.array([a, a])
         belief_distribution_sigma = np.array([[0.4, 0], [0, 0.4]])
+        sum = 0
         for x in range(0, hidden_state_range):
             r = x % relation_range
             e = (x - r) // relation_range
             belief_hiddenstate_distribution[a, x] = gaussian(np.array([e, r]), belief_distribution_mu, belief_distribution_sigma)
+            sum = sum + belief_hiddenstate_distribution[a, x]
+        for x in range(0, hidden_state_range):
+            belief_hiddenstate_distribution[a, x] = belief_hiddenstate_distribution[a, x] / float(sum)
     return belief_hiddenstate_distribution
 
 
@@ -130,11 +138,14 @@ def xUpdate(belief_conditional_hiddenstate_distribution, action, y_signal):
     return np.array([emotion, relation])
 
 # p~(y)を更新
-def preference_distribution_Update(preference_distribution, hidden_state):
-    if hidden_state[1] == 1:
-        preference_distribution = np.array([0.1, (0.9/4), (0.9/4), (0.9/4), (0.9/4)])
+def preference_distribution_Update(preference_distribution, hidden_state, sensory):
+    relation = hidden_state[1]
+    if sensory == 0:
+        preference_distribution = np.array([0.01, 0.01, 1/3, 1/3, 1/3])
+    elif sensory == 1:
+        preference_distribution = np.array([0.01, 1/4, 1/4, 1/4, 1/4])
     else:
-        preference_distribution = np.array([0.2, 0.2, 0.2, 0.2, 0.2])
+        preference_distribution = np.array([1/5, 1/5, 1/5, 1/5, 1/5])
     return preference_distribution
 
 
@@ -151,7 +162,7 @@ def child_inference(child, epoch):
     # 隠れ状態xの更新
     child.hidden_state = xUpdate(child.belief_conditional_hiddenstate_distribution, child.action, child.sensory)
     # 選好分布の更新
-    child.preference_distribution = preference_distribution_Update(child.preference_distribution, child.hidden_state)
+    #child.preference_distribution = preference_distribution_Update(child.preference_distribution, child.hidden_state, child.sensory)
 
     # FE計算
     child.epistemic_value = epistemic_value_calculate(child.belief_hiddenstate_distribution, child.belief_sensory_distribution, child.belief_conditional_hiddenstate_distribution, child.epistemic_value, epoch)

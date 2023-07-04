@@ -1,12 +1,6 @@
 # 能動的推論を使った会話モデル
 import numpy as np
-from scipy import stats
-import matplotlib.pyplot as plt
-import japanize_matplotlib
 from math import log
-import random
-import pandas as pd
-
 import program
 
 # agentの情報保存
@@ -57,7 +51,7 @@ parent.preference_distribution = program.talk_parent.preference_distribution_mak
 
 # active inference
 epoch = 12
-parent.action = 3 #親の初期行動
+parent.action = 1 #親の初期行動
 
 for i in range(0, epoch):
     print(f"{i+1}回目")
@@ -70,7 +64,7 @@ for i in range(0, epoch):
     # 子の推論
     print(f"子供の感覚信号 : {child.sensory}")
     child = program.talk_child.child_inference(child, i)
-    print(f"子供  action{child.action}, FE{child.F_expected}")
+    print(f"子供の行動{child.action}, FE{child.F_expected}")
 
     # 子の行動⇒親の感覚
     a = child.action
@@ -78,6 +72,6 @@ for i in range(0, epoch):
     parent.sensory = s
 
     # 親の推論
-    print(f"親の感覚信号 : {parent.sensory}")
+    #print(f"親の感覚信号 : {parent.sensory}")
     parent = program.talk_parent.parent_inference(parent, i)
-    print(f"親    action{parent.action}, FE{child.F_expected}")
+    #print(f"親の行動{parent.action}, FE{parent.F_expected}")

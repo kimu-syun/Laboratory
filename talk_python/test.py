@@ -1,38 +1,45 @@
-# グラフ描画
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-import japanize_matplotlib
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.widgets import Button
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
-time_steps = 10
+# フィギュア1の設定
+fig1, ax1 = plt.subplots()
+x = np.linspace(0, 2 * np.pi, 100)
+y = np.sin(x)
+ax1.plot(x, y)
+ax1.set_title('Figure 1')
 
+# フィギュア2の設定
+fig2, ax2 = plt.subplots()
+ax2.plot(x, -y)
+ax2.set_title('Figure 2')
 
-# データ入力
-df = pd.read_csv("./data/child/likelihood_distribution/action_0.csv", sep=" ", header=None)
-#print(df[0].to_numpy().reshape([5, -1], order="F"))
+# ボタンクリック時のコールバック関数
+def on_button_clicked(event):
+    # クリックされたボタンによって表示を切り替える
+    if event.inaxes == ax1_button:
+        fig2.canvas.manager.window.hide()
+        fig1.canvas.manager.window.show()
+    elif event.inaxes == ax2_button:
+        fig1.canvas.manager.window.hide()
+        fig2.canvas.manager.window.show()
 
+# ボタンの設定
+ax1_button = fig1.add_axes([0.7, 0.05, 0.1, 0.075])
+ax1_button_obj = Button(ax1_button, 'Figure 1')
+ax1_button_obj.on_clicked(on_button_clicked)
 
+ax2_button = fig2.add_axes([0.7, 0.05, 0.1, 0.075])
+ax2_button_obj = Button(ax2_button, 'Figure 2')
+ax2_button_obj.on_clicked(on_button_clicked)
 
-# figure作成
-fig, axes = plt.subplots(3, 2, tight_layout=True, figsize = (8, 10))
-fig.suptitle("尤度分布 $p(y|x,a)$")
-fig.delaxes(axes[2, 1])
+# グラフをキャンバスに描画
+canvas = FigureCanvas(fig1)
+canvas.draw()
 
+# グラフをHTMLファイルに保存
+html_file = 'output.html'
+canvas.print_html(html_file)
 
-for i in range(0, 5):
-    axes[i//2][i%2].set_xlabel("emotion")
-    axes[i//2][i%2].set_ylabel("relation")
-    axes[i//2][i%2].grid()
-    axes[i//2][i%2].set_title(f"$y$ = {i+1}")
-    axes[i//2][i%2].set_xlim(left=0, right=4)
-    axes[i//2][i%2].set_ylim(bottom=0, top=4)
-    heatmap = axes[i//2][i%2].imshow(df[i].to_numpy().reshape([5, -1], order="F"), origin="lower", vmin = 0, vmax = 1)
-
-
-divider = make_axes_locatable(axes[2,1])
-cax = divider.append_axes("bottom", size="5%", pad=0.5) #append_axesで新しいaxesを作成
-
-fig.colorbar(heatmap, cax=cax, orientation="horizontal") #新しく作成したaxesであるcaxを渡す。
-
-plt.show()
+print(f"HTMLファイル '{html_file}' に保存しました。")
