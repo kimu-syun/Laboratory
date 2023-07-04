@@ -71,7 +71,8 @@ for i in range(0, epoch):
     s = a
     parent.sensory = s
 
+    print()
     # 親の推論
-    #print(f"親の感覚信号 : {parent.sensory}")
+    print(f"親の感覚信号 : {parent.sensory}")
     parent = program.talk_parent.parent_inference(parent, i)
-    #print(f"親の行動{parent.action}, FE{parent.F_expected}")
+    print(f"親の行動{parent.action}, FE{parent.F_expected}")

@@ -162,7 +162,7 @@ def child_inference(child, epoch):
     # 隠れ状態xの更新
     child.hidden_state = xUpdate(child.belief_conditional_hiddenstate_distribution, child.action, child.sensory)
     # 選好分布の更新
-    #child.preference_distribution = preference_distribution_Update(child.preference_distribution, child.hidden_state, child.sensory)
+    child.preference_distribution = preference_distribution_Update(child.preference_distribution, child.hidden_state, child.sensory)
 
     # FE計算
     child.epistemic_value = epistemic_value_calculate(child.belief_hiddenstate_distribution, child.belief_sensory_distribution, child.belief_conditional_hiddenstate_distribution, child.epistemic_value, epoch)
