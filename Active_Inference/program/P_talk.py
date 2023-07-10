@@ -4,13 +4,13 @@ import random
 class agent_function():
 
     alpha = 0.2
-    x_dic ={0:-0.5, 1:-0.3, 2:0, 3:0.3, 4:0.5}
-    y_dic ={0:-2, 1:-1, 2:0, 3:1, 4:2}
+    x_dic = [-0.5, -0.3, 0, 0.3, 0.5]
+    y_dic = [-2, -1, 0, 1, 2]
 
     def __init__(self):
         pass
 
-    def trans(continu):
+    def trans(self, continu):
         # 連続値⇒離散値
         descrete = 0
         if -1.5 <= continu <= 0.5:
@@ -34,7 +34,7 @@ class agent_function():
     def action(self):
         # a_tを導出
         sigma = random.uniform(-0.5, 0.5)
-        self.a = self.y + self.x_dic[self.x] + sigma
+        self.a = self.y + self.x_dic[self.trans(self.x)] + sigma
         self.a = self.trans(self.a)
 
 
