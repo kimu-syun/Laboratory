@@ -30,6 +30,8 @@ class agent:
         self.PS_save = np.zeros((5, epoch))
         self.EV_save = np.zeros((5, epoch))
         self.Fmin_save = np.zeros(epoch)
+        self.a_save = np.zeros(epoch)
+        self.y_save = np.zeros(epoch)
 
 
 
@@ -43,7 +45,7 @@ hidden_state_range = emotion_range * relation_range
 
 # active inference
 epoch = 100
-y_order = [0, 0, 0, 0, 0]
+a_order = [0, 0, 0, 0, 0]
 y_sum = [0, 0, 0, 0, 0]
 a_sum = [0, 0, 0, 0, 0]
 
@@ -80,6 +82,7 @@ for i in range(0, epoch):
     print(f"子供の感覚信号 : {child.y}")
     child = program.C_talk.child_inference(child, i)
 
+
     # ふるまい記録
     y_sum[child.y] += 1
     if child.y == 0:
@@ -115,42 +118,50 @@ for i in range(0, epoch):
 fig = plt.figure(figsize=(15, 10))
 fig.suptitle(f"Active Inference - parent initial action = {P_aini}")
 
-ax1 = fig.add_subplot(2, 2, 1)
+ax1 = fig.add_subplot(2, 1, 1)
 
-ax1.set_xlabel("time steps")
-ax1.set_ylabel("期待自由エネルギーF")
+# ax1.set_xlabel("time steps")
+# ax1.set_ylabel("期待自由エネルギーF")
+# ax1.grid()
+
+# ax1.plot(child.F_save[0], label = "action0")
+# ax1.plot(child.F_save[1], label = "action1")
+# ax1.plot(child.F_save[2], label = "action2")
+# ax1.plot(child.F_save[3], label = "action3")
+# ax1.plot(child.F_save[4], label = "action4")
+
+ax1.set_xlabel("time step")
+ax1.set_ylabel("a,yの遷移")
 ax1.grid()
-
-ax1.plot(child.F_save[0], label = "action0")
-ax1.plot(child.F_save[1], label = "action1")
-ax1.plot(child.F_save[2], label = "action2")
-ax1.plot(child.F_save[3], label = "action3")
-ax1.plot(child.F_save[4], label = "action4")
+ax1.plot(child.y_save, label="y")
+ax1.plot(child.a_save, label="a")
 
 
-ax2 = fig.add_subplot(2, 2, 2)
-ax2.set_xlabel("time steps")
-ax2.set_ylabel("epistimec value")
-ax2.grid()
-ax2.plot(child.EV_save[0], label = "action0")
-ax2.plot(child.EV_save[1], label = "action1")
-ax2.plot(child.EV_save[2], label = "action2")
-ax2.plot(child.EV_save[3], label = "action3")
-ax2.plot(child.EV_save[4], label = "action4")
 
 
-ax3 = fig.add_subplot(2, 2, 3)
-ax3.set_xlabel("time steps")
-ax3.set_ylabel("predicted surprised")
-ax3.grid()
-ax3.plot(child.PS_save[0], label = "action0")
-ax3.plot(child.PS_save[1], label = "action1")
-ax3.plot(child.PS_save[2], label = "action2")
-ax3.plot(child.PS_save[3], label = "action3")
-ax3.plot(child.PS_save[4], label = "action4")
+# ax2 = fig.add_subplot(2, 2, 2)
+# ax2.set_xlabel("time steps")
+# ax2.set_ylabel("epistimec value")
+# ax2.grid()
+# ax2.plot(child.EV_save[0], label = "action0")
+# ax2.plot(child.EV_save[1], label = "action1")
+# ax2.plot(child.EV_save[2], label = "action2")
+# ax2.plot(child.EV_save[3], label = "action3")
+# ax2.plot(child.EV_save[4], label = "action4")
 
 
-ax4 = fig.add_subplot(2, 2, 4)
+# ax3 = fig.add_subplot(2, 2, 3)
+# ax3.set_xlabel("time steps")
+# ax3.set_ylabel("predicted surprised")
+# ax3.grid()
+# ax3.plot(child.PS_save[0], label = "action0")
+# ax3.plot(child.PS_save[1], label = "action1")
+# ax3.plot(child.PS_save[2], label = "action2")
+# ax3.plot(child.PS_save[3], label = "action3")
+# ax3.plot(child.PS_save[4], label = "action4")
+
+
+ax4 = fig.add_subplot(2, 1, 2)
 ax4.set_xlabel("time steps")
 ax4.set_ylabel("minF")
 ax4.grid()
@@ -158,18 +169,27 @@ ax4.plot(child.Fmin_save, label = "FE")
 
 
 ax1.legend()
-ax2.legend()
-ax3.legend()
+# ax2.legend()
+# ax3.legend()
 ax4.legend()
 # ax1.legend(loc="lower left", bbox_to_anchor=(1.02, 0.0,), borderaxespad=0)
 # ax2.legend(loc="lower left", bbox_to_anchor=(1.02, 0.0,), borderaxespad=0)
 # ax3.legend(loc="lower left", bbox_to_anchor=(1.02, 0.0,), borderaxespad=0)
 # plt.legend(["action0", "action1", "action2", "action3", "action4"])
 
+Y = np.array([0, 0, 0, 0, 0])
+for i in range(0, 5):
+    Y[i] = (y_sum[i] / epoch) * 100
+print("yの出現確率")
+print(Y)
 #ふるまい出力
 for i in range(0, 5):
-    y_order[i] = a_sum[i] * 100 / (y_sum[i])
-print(y_order)
+    if y_sum[i] == 0:
+        continue
+    a_order[i] = a_sum[i] * 100 / (y_sum[i])
+
+print("正しく返せたaの割合")
+print(a_order)
 print(y_sum)
 
 plt.show()

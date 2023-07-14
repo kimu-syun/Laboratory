@@ -42,6 +42,11 @@ class agent_function():
     def update(self):
         # x_tをx_(t+1)に更新
         self.x = self.alpha*self.y_dic[self.y] + (1-self.alpha)*self.x
+        # xの上限、下限設定
+        if self.x <= -0.5:
+            self.x = -0.5
+        if 4.5 <= self.x:
+            self.x = 4.5
 
     def fun(self, x, y):
         # x_t, y_tを受け取って,x_(t+1),a_(t+1)を返す

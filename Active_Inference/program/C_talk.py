@@ -100,6 +100,15 @@ def Py_make(Py):
     Py[4] = np.array([1/3, 1/3, 1/3, 0.001, 0.001])
     return Py
 
+
+# def Py_make(Py):
+#     Py[0] = np.array([0.001, 0.001, 1/15, 1/15, 1/15])
+#     Py[1] = np.array([0.001, 1/20, 1/20, 1/20, 1/20])
+#     Py[2] = np.array([1/25, 1/25, 1/25, 1/25, 1/25])
+#     Py[3] = np.array([1/20, 1/20, 1/20, 1/20, 0.001])
+#     Py[4] = np.array([1/15, 1/15, 1/15, 0.001, 0.001])
+#     return Py
+
 # q(y|a)
 def Qya_make(Qya, Pyxa, Qxa):
     for y in range(0, 5):
@@ -223,6 +232,9 @@ def child_inference(child, epoch):
         child.PS_save[j, epoch] = child.predicted_surprised[j, child.u]
         child.EV_save[j, epoch] = child.epistemic_value[j, child.u]
     child.Fmin_save[epoch] = child.F_expected[child.a, child.u]
+
+    child.y_save[epoch] = child.y
+    child.a_save[epoch] = child.a
 
 
     return child
