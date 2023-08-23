@@ -4,3 +4,5 @@ from program import talk_parent
 from program import GraphDraw_likelihood_distribution
 from program import GraphDraw_belief_hiddenstate_distribution
 from program import GraphDraw_belief_conditional_hiddenstate_distribution
+from program import P_talk
+from program import C_talk
